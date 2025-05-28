@@ -1,0 +1,137 @@
+/*
+ * Rewritten board initialization using libopencm3
+ * Original code used STM32 HAL
+ */
+
+#include <libopencm3/cm3/nvic.h>
+#include <libopencm3/cm3/systick.h>
+#include <libopencm3/stm32/rcc.h>
+#include <libopencm3/stm32/gpio.h>
+#include <libopencm3/stm32/usart.h>
+#include <libopencm3/stm32/pwr.h>
+//#include <libopencm3/stm32/usb.h>
+#include "bsp/board_api.h"
+#include "board_cm3.h"
+
+#ifdef UART_DEV
+#define UART_CONSOLE USART2
+#endif
+
+void USB_UCPD1_2_IRQHandler(void) {
+  tud_int_handler(0);
+}
+
+void board_init(void) {
+  // System clock setup
+  board_clock_init();
+
+  // Enable GPIO clocks
+  rcc_periph_clock_enable(RCC_GPIOA);
+  rcc_periph_clock_enable(RCC_GPIOB);
+  rcc_periph_clock_enable(RCC_GPIOC);
+  rcc_periph_clock_enable(RCC_GPIOD);
+  rcc_periph_clock_enable(RCC_GPIOE);
+
+  rcc_periph_clock_enable(RCC_PWR);
+  rcc_periph_clock_enable(RCC_SYSCFG);
+
+#if CFG_TUSB_OS == OPT_OS_NONE
+  systick_set_reload(48000); // Assuming 48 MHz clock, for 1ms tick
+  systick_clear();
+  systick_counter_enable();
+  systick_interrupt_enable();
+#elif CFG_TUSB_OS == OPT_OS_FREERTOS
+  SysTick->CTRL &= ~1U;
+  nvic_set_priority(NVIC_USB_UCPD1_2_IRQ, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);
+#endif
+
+  // LED setup
+  gpio_mode_setup(LED_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, LED_PIN);
+  board_led_write(false);
+
+  // Button setup
+  gpio_mode_setup(BUTTON_PORT, GPIO_MODE_INPUT,
+    BUTTON_STATE_ACTIVE ? GPIO_PUPD_PULLDOWN : GPIO_PUPD_PULLUP, BUTTON_PIN);
+
+#ifdef UART_DEV
+  rcc_periph_clock_enable(RCC_USART2);
+  gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_PULLUP, GPIO2 | GPIO3);
+  gpio_set_af(GPIOA, GPIO_AF1, GPIO2 | GPIO3);
+  usart_set_baudrate(UART_CONSOLE, CFG_BOARD_UART_BAUDRATE);
+  usart_set_databits(UART_CONSOLE, 8);
+  usart_set_stopbits(UART_CONSOLE, USART_STOPBITS_1);
+  usart_set_parity(UART_CONSOLE, USART_PARITY_NONE);
+  usart_set_flow_control(UART_CONSOLE, USART_FLOWCONTROL_NONE);
+  usart_set_mode(UART_CONSOLE, USART_MODE_TX_RX);
+  usart_enable(UART_CONSOLE);
+#endif
+
+  // USB setup (DP/DM pins are GPIOA11/12)
+  gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO11 | GPIO12);
+  rcc_periph_clock_enable(RCC_USB);
+  //pwr_vddusb_enable();
+}
+
+static inline void gpio_write(uint32_t gpio_port, uint16_t gpio_pin, bool value) {
+    if (value)
+        gpio_set(gpio_port, gpio_pin);
+    else
+        gpio_clear(gpio_port, gpio_pin);
+}
+
+
+void board_led_write(bool state) {
+  gpio_write(LED_PORT, LED_PIN, state ? LED_STATE_ON : !LED_STATE_ON);
+}
+
+uint32_t board_button_read(void) {
+  return gpio_get(BUTTON_PORT, BUTTON_PIN) == (BUTTON_STATE_ACTIVE ? BUTTON_PIN : 0);
+}
+
+size_t board_get_unique_id(uint8_t id[], size_t max_len) {
+  (void) max_len;
+  volatile uint32_t *uuid = (uint32_t*)0x1FFF7590;
+  uint32_t* id32 = (uint32_t*)id;
+  id32[0] = uuid[0];
+  id32[1] = uuid[1];
+  id32[2] = uuid[2];
+  return 12;
+}
+
+int board_uart_read(uint8_t *buf, int len) {
+  (void) buf;
+  (void) len;
+  return 0;
+}
+
+int board_uart_write(const void *buf, int len) {
+#ifdef UART_DEV
+  const uint8_t *b = (const uint8_t*) buf;
+  for (int i = 0; i < len; ++i) {
+    usart_send_blocking(UART_CONSOLE, b[i]);
+  }
+  return len;
+#else
+  return 0;
+#endif
+}
+
+#if CFG_TUSB_OS == OPT_OS_NONE
+volatile uint32_t system_ticks = 0;
+
+void sys_tick_handler(void) {
+  system_ticks++;
+}
+
+uint32_t board_millis(void) {
+  return system_ticks;
+}
+#endif
+
+void HardFault_Handler(void) {
+  __asm volatile("bkpt #0");
+}
+
+void _init(void) {
+  // required for newlib
+}

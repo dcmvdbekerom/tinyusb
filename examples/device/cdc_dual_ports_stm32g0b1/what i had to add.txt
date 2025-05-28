@@ -1,0 +1,9 @@
+- Add drivers to folder and include:
+Drivers/CMSIS/Core/Include \                    https://github.com/STMicroelectronics/STM32CubeG0
+Drivers/CMSIS/Device/ST/STM32G0xx/Include \     https://github.com/STMicroelectronics/cmsis-device-g0
+Drivers/STM32G0xx_HAL_Driver/Inc \              https://github.com/STMicroelectronics/stm32g0xx-hal-driver
+
+Add these to hw/mcu
+
+
+- Define CFLAGS += -DSTM32G0B1xx -D__CORTEX_SC=0U

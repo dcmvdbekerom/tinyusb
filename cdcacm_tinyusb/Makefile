@@ -5,7 +5,6 @@ include ../build_system/make.mk
 
 INC += \
   src \
-  ../hw/mcu/st/cmsis_core/Include \
   $(TOP)/hw \
 
 

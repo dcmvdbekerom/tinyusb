@@ -25,9 +25,9 @@ endif
 # $(lastword $(MAKEFILE_LIST)) returns the name of this makefile relative to where make was invoked.
 THIS_MAKEFILE := $(lastword $(MAKEFILE_LIST))
 
-# strip off /build_system/make to get for example ../..
+# strip off /build_system/make to get for example ..
 # and Set TOP to an absolute path
-TOP = $(abspath $(subst make.mk,../..,$(THIS_MAKEFILE)))
+TOP = $(abspath $(subst make.mk,..,$(THIS_MAKEFILE)))
 
 # Set CURRENT_PATH to the relative path from TOP to the current directory, ie examples/device/cdc_msc_freertos
 CURRENT_PATH = $(subst $(TOP)/,,$(abspath .))
@@ -145,11 +145,11 @@ endif
 
 # CPU specific flags
 ifdef CPU_CORE
-  include ${TOP}/build_system/make/cpu/$(CPU_CORE).mk
+  include ${TOP}/build_system/cpu/$(CPU_CORE).mk
 endif
 
 # toolchain specific
-include ${TOP}/build_system/make/toolchain/arm_$(TOOLCHAIN).mk
+include ${TOP}/build_system/toolchain/arm_$(TOOLCHAIN).mk
 
 #---------------------- FreeRTOS -----------------------
 FREERTOS_SRC = lib/FreeRTOS-Kernel

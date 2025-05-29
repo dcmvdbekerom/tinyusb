@@ -17,4 +17,4 @@ CFLAGS += \
 
 LIBS += -lgcc -lm -lnosys
 
-include ${TOP}/build_system/make/toolchain/gcc_common.mk
+include ${TOP}/build_system/toolchain/gcc_common.mk

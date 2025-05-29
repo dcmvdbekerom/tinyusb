@@ -24,7 +24,7 @@ vpath %.c . $(TOP)
 vpath %.s . $(TOP)
 vpath %.S . $(TOP)
 
-include ${TOP}/build_system/make/toolchain/$(TOOLCHAIN)_rules.mk
+include ${TOP}/build_system/toolchain/$(TOOLCHAIN)_rules.mk
 
 # ---------------------------------------
 # Compiler Flags

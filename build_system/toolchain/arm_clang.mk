@@ -7,4 +7,4 @@ GDB = $(CROSS_COMPILE)gdb
 OBJCOPY = llvm-objcopy
 SIZE = llvm-size
 
-include ${TOP}/build_system/make/toolchain/gcc_common.mk
+include ${TOP}/build_system/toolchain/gcc_common.mk

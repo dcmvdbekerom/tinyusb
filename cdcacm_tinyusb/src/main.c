@@ -47,6 +47,10 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 static void led_blinking_task(void);
 static void cdc_task(void);
 
+static uint8_t MSG_LOWER[] = "lower case\r\n";
+static uint8_t MSG_UPPER[] = "UPPER CASE\r\n";
+static void echo_serial_port(uint8_t itf, uint8_t buf[], uint32_t count);
+
 /*------------- MAIN -------------*/
 int main(void) {
   board_init();
@@ -57,7 +61,7 @@ int main(void) {
     .speed = TUSB_SPEED_AUTO
   };
   tusb_init(BOARD_TUD_RHPORT, &dev_init);
-
+  
   if (board_init_after_tusb) {
     board_init_after_tusb();
   }
@@ -91,6 +95,9 @@ static void echo_serial_port(uint8_t itf, uint8_t buf[], uint32_t count) {
 // Invoked when device is mounted
 void tud_mount_cb(void) {
   blink_interval_ms = BLINK_MOUNTED;
+  echo_serial_port(0, MSG_LOWER, 12);
+  echo_serial_port(1, MSG_UPPER, 12);
+
 }
 
 // Invoked when device is unmounted

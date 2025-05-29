@@ -49,7 +49,7 @@ void USB_UCPD1_2_IRQHandler(void) {
 // #endif
 
 void board_init(void) {
-  HAL_Init(); // required for HAL_RCC_Osc TODO check with freeRTOS
+  //HAL_Init(); // required for HAL_RCC_Osc TODO check with freeRTOS
   board_clock_init();
 
   // Enable All GPIOs clocks

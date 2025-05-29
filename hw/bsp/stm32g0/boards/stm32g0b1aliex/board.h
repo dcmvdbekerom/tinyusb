@@ -42,6 +42,11 @@
 // - PA11 for D-, CN10.14
 
 // LED
+#define GPIO_PIN_2                 ((uint16_t)0x0004)  /* Pin 2 selected    */
+#define GPIO_PIN_3                 ((uint16_t)0x0008)  /* Pin 3 selected    */
+#define GPIO_PIN_6                 ((uint16_t)0x0040)
+#define GPIO_PIN_13                ((uint16_t)0x2000)  /* Pin 13 selected   */
+
 #define LED_PORT              GPIOC
 #define LED_PIN               GPIO_PIN_6
 #define LED_STATE_ON          0
@@ -70,7 +75,7 @@ static inline void board_clock_init(void)
 
   /** Configure the main internal regulator output voltage */
   //HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1);
-  PWR->CR1 = (PWR->CR1 & ~PWR_CR1_VOS) | PWR_REGULATOR_VOLTAGE_SCALE1;
+  PWR->CR1 = (PWR->CR1 & ~PWR_CR1_VOS) | ( PWR_CR1_VOS_0);
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure. */
@@ -96,6 +101,9 @@ static inline void board_clock_init(void)
     // 2. Configure HSI divider (HSIDIV bits 7:6 in RCC_CR)
     RCC->CR &= ~RCC_CR_HSIDIV;                 // Clear HSIDIV bits
     RCC->CR |= RCC_CR_HSIDIV_0;                // HSIDIV = DIV1 (0b00, so could omit)
+    
+    
+#define RCC_HSICALIBRATION_DEFAULT     64U  
 
     // 3. HSI calibration (bits 15:8 in RCC_CR)
     RCC->ICSCR = (RCC->ICSCR & ~RCC_ICSCR_HSICAL) | RCC_HSICALIBRATION_DEFAULT;
@@ -131,13 +139,15 @@ static inline void board_clock_init(void)
    // __asm("BKPT #4\n");
 
 
-
+#define FLASH_LATENCY_2                 FLASH_ACR_LATENCY_1
 // Configure Flash latency (FLASH_ACR register)
     FLASH->ACR &= ~FLASH_ACR_LATENCY;
     FLASH->ACR |= FLASH_LATENCY_2;      // 2 wait states
     
     while( (FLASH->ACR&FLASH_ACR_LATENCY) != FLASH_LATENCY_2) {};
 
+#define RCC_SYSCLK_DIV1                0x00000000U 
+#define RCC_HCLK_DIV1                  0x00000000U  
  
     RCC->CFGR = (RCC->CFGR & ~(RCC_CFGR_SW | RCC_CFGR_HPRE | RCC_CFGR_PPRE))
         | RCC_CFGR_SW_PLLRCLK  // SYSCLK = PLL

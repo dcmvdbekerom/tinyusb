@@ -95,18 +95,19 @@ static inline void board_clock_init(void)
   
       
       // 1. Enable HSI oscillator
-    RCC->CR |= RCC_CR_HSION;                   // Turn on HSI
-    while ((RCC->CR & RCC_CR_HSIRDY) == 0){};   // Wait until HSI ready
+    RCC->CR |= RCC_CR_HSEON;                   // Turn on HSI
+    while ((RCC->CR & RCC_CR_HSERDY) == 0){};   // Wait until HSI ready
 
-    // 2. Configure HSI divider (HSIDIV bits 7:6 in RCC_CR)
-    RCC->CR &= ~RCC_CR_HSIDIV;                 // Clear HSIDIV bits
-    RCC->CR |= RCC_CR_HSIDIV_0;                // HSIDIV = DIV1 (0b00, so could omit)
+    // DvdB: this is fo HISYS clock generation, but I don't use HISYS
+    // // 2. Configure HSI divider (HSIDIV bits 7:6 in RCC_CR)
+    // RCC->CR &= ~RCC_CR_HSIDIV;                 // Clear HSIDIV bits
+    // RCC->CR |= RCC_CR_HSIDIV_0;                // HSIDIV = DIV1 (0b00, so could omit)
     
     
-#define RCC_HSICALIBRATION_DEFAULT     64U  
-
-    // 3. HSI calibration (bits 15:8 in RCC_CR)
-    RCC->ICSCR = (RCC->ICSCR & ~RCC_ICSCR_HSICAL) | RCC_HSICALIBRATION_DEFAULT;
+    //DvdB: I dont use HSI
+    // // 3. HSI calibration (bits 15:8 in RCC_CR)
+ // #define RCC_HSICALIBRATION_DEFAULT     64U     
+    // RCC->ICSCR = (RCC->ICSCR & ~RCC_ICSCR_HSICAL) | RCC_HSICALIBRATION_DEFAULT;
 
     // 4. Configure PLL
     // Disable PLL first
@@ -119,7 +120,7 @@ static inline void board_clock_init(void)
              | (0 << RCC_PLLCFGR_PLLP_Pos)    // PLLP = DIV2 (0 means DIV2)
              | (0 << RCC_PLLCFGR_PLLQ_Pos)    // PLLQ = DIV2 (0 means DIV2)
              | (0 << RCC_PLLCFGR_PLLR_Pos)    // PLLR = DIV2 (0 means DIV2)
-             | RCC_PLLCFGR_PLLSRC_HSI          // PLL source = HSI
+             | RCC_PLLCFGR_PLLSRC_HSE          // PLL source = HSE
              | RCC_PLLCFGR_PLLREN               // Enable PLLR output (usually needed)
              ;
     // 5. Enable PLL
@@ -158,18 +159,8 @@ static inline void board_clock_init(void)
     while ((RCC->CFGR & RCC_CFGR_SW) != RCC_CFGR_SW_PLLRCLK) { }
 
 
-  // Configure CRS clock source
-  // __HAL_RCC_CRS_CLK_ENABLE();
-  // RCC_CRSInitTypeDef RCC_CRSInitStruct = {0};
-  // RCC_CRSInitStruct.Prescaler = RCC_CRS_SYNC_DIV1;
-  // RCC_CRSInitStruct.Source = RCC_CRS_SYNC_SOURCE_USB;
-  // RCC_CRSInitStruct.Polarity = RCC_CRS_SYNC_POLARITY_RISING;
-  // RCC_CRSInitStruct.ReloadValue = __HAL_RCC_CRS_RELOADVALUE_CALCULATE(48000000,1000);
-  // RCC_CRSInitStruct.ErrorLimitValue = 34;
-  // RCC_CRSInitStruct.HSI48CalibrationValue = 32;
-  //HAL_RCCEx_CRSConfig(&RCC_CRSInitStruct);
-  
-  
+    // Configure CRS clock source
+
     // Enable CRS peripheral clock
     RCC->APBENR1 |= RCC_APBENR1_CRSEN;
 
@@ -189,22 +180,12 @@ static inline void board_clock_init(void)
 
 
 
-  /* Select HSI48 as USB clock source */
-  // RCC_PeriphCLKInitTypeDef usb_clk = {0 };
-  // usb_clk.PeriphClockSelection = RCC_PERIPHCLK_USB;
-  // usb_clk.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
-  // HAL_RCCEx_PeriphCLKConfig(&usb_clk);
+    /* Select HSI48 as USB clock source */
 
     RCC->CCIPR2 = (RCC->CCIPR2 & ~RCC_CCIPR2_USBSEL_Msk) | (0b00 << RCC_CCIPR2_USBSEL_Pos);  // 00: HSI48 selected as USB clock
 
-  // Enable HSI48
-  // RCC_OscInitTypeDef osc_hsi48 = {0};
-  // osc_hsi48.OscillatorType = RCC_OSCILLATORTYPE_HSI48;
-  // osc_hsi48.HSI48State = RCC_HSI48_ON;
-  // HAL_RCC_OscConfig(&osc_hsi48);
-  
-  
-  RCC->CR |= RCC_CR_HSI48ON;
+    // Enable HSI48
+    RCC->CR |= RCC_CR_HSI48ON;
 
     // Wait until HSI48 is ready
     while ((RCC->CR & RCC_CR_HSI48RDY) == 0) {};

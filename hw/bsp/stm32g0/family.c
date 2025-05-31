@@ -29,7 +29,6 @@
    manufacturer: STMicroelectronics
 */
 
-//#include "stm32g0xx_hal.h"
 #include "stm32g0xx.h"
 #include "bsp/board_api.h"
 #include "board.h"
@@ -49,7 +48,7 @@ void USB_UCPD1_2_IRQHandler(void) {
 // #endif
 
 void board_init(void) {
-  //HAL_Init(); // required for HAL_RCC_Osc TODO check with freeRTOS
+
   board_clock_init();
 
   // Enable All GPIOs clocks
@@ -64,17 +63,6 @@ void board_init(void) {
     RCC->APBENR2 |= RCC_APBENR2_SYSCFGEN;
     RCC->APBENR1 |= RCC_APBENR1_PWREN;
 
-//DvdB: Old HAL code, may need it later if the CMSIS code turns out not to work
-// #if CFG_TUSB_OS == OPT_OS_NONE
-  // // 1ms tick timer
-  // SysTick_Config(SystemCoreClock / 1000);
-// #elif CFG_TUSB_OS == OPT_OS_FREERTOS
-  // // Explicitly disable systick to prevent its ISR runs before scheduler start
-  // SysTick->CTRL &= ~1U;
-
-  // // If freeRTOS is used, IRQ priority is limit by max syscall ( smaller is higher )
-  // NVIC_SetPriority(USB_UCPD1_2_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);
-// #endif
 
     #if CFG_TUSB_OS == OPT_OS_NONE
       // 1ms tick timer using SysTick
@@ -84,16 +72,13 @@ void board_init(void) {
                        SysTick_CTRL_TICKINT_Msk   |
                        SysTick_CTRL_ENABLE_Msk;
 
-    #elif CFG_TUSB_OS == OPT_OS_FREERTOS
-      // Disable SysTick to prevent early interrupts before scheduler starts
-      SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
+    // #elif CFG_TUSB_OS == OPT_OS_FREERTOS
+      // // Disable SysTick to prevent early interrupts before scheduler starts
+      // SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
 
-      // Set USB interrupt priority
-      NVIC_SetPriority(USB_UCPD1_2_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);
+      // // Set USB interrupt priority
+      // NVIC_SetPriority(USB_UCPD1_2_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);
     #endif
-
-
-  //GPIO_InitTypeDef GPIO_InitStruct;
 
   // // LED
     uint32_t led_pin2 = LED_PIN * LED_PIN; //double the width for use with config registers that need 2bit per pin
@@ -104,16 +89,7 @@ void board_init(void) {
     LED_PORT->OSPEEDR = (LED_PORT->OSPEEDR & (~led_msk2)) | (led_pin2 * 0b11);// Set speed to high (11)
     LED_PORT->PUPDR   = (LED_PORT->PUPDR   & (~led_msk2)) | (led_pin2 * 0b01);// Set pull-up (01)
 
-  // GPIO_InitTypeDef GPIO_InitStruct;
-
-  // // LED
-  // GPIO_InitStruct.Pin = LED_PIN;
-  // GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  // GPIO_InitStruct.Pull = GPIO_PULLUP;
-  // GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  // HAL_GPIO_Init(LED_PORT, &GPIO_InitStruct);
-
-   board_led_write(false);
+    board_led_write(false);
 
 
     uint32_t button_pin2 = BUTTON_PIN * BUTTON_PIN;
@@ -152,27 +128,12 @@ void board_init(void) {
   // };
   // HAL_UART_Init(&UartHandle);
 // #endif
-
-//DvdB: If it's optional, don't do it..
-  // USB Pins TODO double check USB clock and pin setup
-  // Configure USB DM and DP pins. This is optional, and maintained only for user guidance.
-  // GPIO_InitStruct.Pin = (GPIO_PIN_11 | GPIO_PIN_12);
-  // GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  // GPIO_InitStruct.Pull = GPIO_NOPULL;
-  // GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  // HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  // /* Peripheral clock enable */
-  // __HAL_RCC_USB_CLK_ENABLE();
-
-  // /* Enable VDDUSB */
-  // HAL_PWREx_EnableVddUSB();
   
   // Enable USB peripheral clock
   RCC->APBENR1 |= RCC_APBENR1_USBEN;
 
   // Enable VDDUSB
-  PWR->CR2 |= PWR_CR2_USV;
+  //PWR->CR2 |= PWR_CR2_USV; //DvdB: This isn't available on STM32G0
       
 }
 
@@ -228,7 +189,6 @@ volatile uint32_t system_ticks = 0;
 
 void SysTick_Handler(void) {
   system_ticks++;
-  // HAL_IncTick();
 }
 
 uint32_t board_millis(void) {

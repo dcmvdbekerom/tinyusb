@@ -95,19 +95,12 @@ static inline void board_clock_init(void)
   
       
       // 1. Enable HSI oscillator
-    RCC->CR |= RCC_CR_HSEON;                   // Turn on HSI
-    while ((RCC->CR & RCC_CR_HSERDY) == 0){};   // Wait until HSI ready
+    RCC->CR |= RCC_CR_HSION;                   // Turn on HSI
+    while ((RCC->CR & RCC_CR_HSIRDY) == 0){};   // Wait until HSI ready
 
-    // DvdB: this is fo HISYS clock generation, but I don't use HISYS
-    // // 2. Configure HSI divider (HSIDIV bits 7:6 in RCC_CR)
-    // RCC->CR &= ~RCC_CR_HSIDIV;                 // Clear HSIDIV bits
-    // RCC->CR |= RCC_CR_HSIDIV_0;                // HSIDIV = DIV1 (0b00, so could omit)
-    
-    
-    //DvdB: I dont use HSI
     // // 3. HSI calibration (bits 15:8 in RCC_CR)
- // #define RCC_HSICALIBRATION_DEFAULT     64U     
-    // RCC->ICSCR = (RCC->ICSCR & ~RCC_ICSCR_HSICAL) | RCC_HSICALIBRATION_DEFAULT;
+    #define RCC_HSICALIBRATION_DEFAULT     64U     
+    RCC->ICSCR = (RCC->ICSCR & ~RCC_ICSCR_HSICAL) | RCC_HSICALIBRATION_DEFAULT;
 
     // 4. Configure PLL
     // Disable PLL first
@@ -117,10 +110,10 @@ static inline void board_clock_init(void)
     // Set PLL source to HSI (bit PLLSRC in RCC_PLLCFGR)
         RCC->PLLCFGR = (0 << RCC_PLLCFGR_PLLM_Pos)    // PLLM = DIV1 (0 means DIV1)
              | (8 << RCC_PLLCFGR_PLLN_Pos)    // PLLN = 8
-             | (0 << RCC_PLLCFGR_PLLP_Pos)    // PLLP = DIV2 (0 means DIV2)
-             | (0 << RCC_PLLCFGR_PLLQ_Pos)    // PLLQ = DIV2 (0 means DIV2)
-             | (0 << RCC_PLLCFGR_PLLR_Pos)    // PLLR = DIV2 (0 means DIV2)
-             | RCC_PLLCFGR_PLLSRC_HSE          // PLL source = HSE
+             | (1 << RCC_PLLCFGR_PLLP_Pos)    // PLLP = DIV2 (1 means DIV2)
+             | (1 << RCC_PLLCFGR_PLLQ_Pos)    // PLLQ = DIV2 (1 means DIV2)
+             | (1 << RCC_PLLCFGR_PLLR_Pos)    // PLLR = DIV2 (1 means DIV2)
+             | RCC_PLLCFGR_PLLSRC_HSI          // PLL source = HSE
              | RCC_PLLCFGR_PLLREN               // Enable PLLR output (usually needed)
              ;
     // 5. Enable PLL
@@ -150,11 +143,12 @@ static inline void board_clock_init(void)
 #define RCC_SYSCLK_DIV1                0x00000000U 
 #define RCC_HCLK_DIV1                  0x00000000U  
  
-    RCC->CFGR = (RCC->CFGR & ~(RCC_CFGR_SW | RCC_CFGR_HPRE | RCC_CFGR_PPRE))
-        | RCC_CFGR_SW_PLLRCLK  // SYSCLK = PLL
-        | RCC_SYSCLK_DIV1      // AHB prescaler = /1 //HAL macro
-        | RCC_HCLK_DIV1 ;     // APB1 prescaler = /1 //HAL macro
-
+    RCC->CFGR = (RCC->CFGR & ~(RCC_CFGR_SW | RCC_CFGR_HPRE | RCC_CFGR_PPRE))//AHB & APB1 prescaler = /1 (default)
+        | RCC_CFGR_SW_PLLRCLK;  // SYSCLK = PLL; 
+    
+    // HSI16 -> PLL[/1 x8 /2] -> SYSCLK = 64 MHz    
+    SystemCoreClock = 64000000;  
+      
     // Wait until PLL is used as system clock
     while ((RCC->CFGR & RCC_CFGR_SW) != RCC_CFGR_SW_PLLRCLK) { }
 

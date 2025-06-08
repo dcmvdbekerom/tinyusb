@@ -80,8 +80,8 @@ enum
 {
   ITF_NUM_CDC_0 = 0,
   ITF_NUM_CDC_0_DATA,
-  ITF_NUM_CDC_1,
-  ITF_NUM_CDC_1_DATA,
+  // ITF_NUM_CDC_1,
+  // ITF_NUM_CDC_1_DATA,
   ITF_NUM_TOTAL
 };
 
@@ -94,9 +94,9 @@ enum
   #define EPNUM_CDC_0_OUT     0x02
   #define EPNUM_CDC_0_IN      0x82
 
-  #define EPNUM_CDC_1_NOTIF   0x84
-  #define EPNUM_CDC_1_OUT     0x05
-  #define EPNUM_CDC_1_IN      0x85
+  // #define EPNUM_CDC_1_NOTIF   0x84
+  // #define EPNUM_CDC_1_OUT     0x05
+  // #define EPNUM_CDC_1_IN      0x85
 
 #elif CFG_TUSB_MCU == OPT_MCU_CXD56
   // CXD56 USB driver has fixed endpoint type (bulk/interrupt/iso) and direction (IN/OUT) by its number
@@ -105,9 +105,9 @@ enum
   #define EPNUM_CDC_0_OUT     0x02
   #define EPNUM_CDC_0_IN      0x81
 
-  #define EPNUM_CDC_1_NOTIF   0x86
-  #define EPNUM_CDC_1_OUT     0x05
-  #define EPNUM_CDC_1_IN      0x84
+  // #define EPNUM_CDC_1_NOTIF   0x86
+  // #define EPNUM_CDC_1_OUT     0x05
+  // #define EPNUM_CDC_1_IN      0x84
 
 #elif defined(TUD_ENDPOINT_ONE_DIRECTION_ONLY)
   // MCUs that don't support a same endpoint number with different direction IN and OUT defined in tusb_mcu.h
@@ -116,18 +116,18 @@ enum
   #define EPNUM_CDC_0_OUT     0x02
   #define EPNUM_CDC_0_IN      0x83
 
-  #define EPNUM_CDC_1_NOTIF   0x84
-  #define EPNUM_CDC_1_OUT     0x05
-  #define EPNUM_CDC_1_IN      0x86
+  // #define EPNUM_CDC_1_NOTIF   0x84
+  // #define EPNUM_CDC_1_OUT     0x05
+  // #define EPNUM_CDC_1_IN      0x86
 
 #else
   #define EPNUM_CDC_0_NOTIF   0x81
   #define EPNUM_CDC_0_OUT     0x02
   #define EPNUM_CDC_0_IN      0x82
 
-  #define EPNUM_CDC_1_NOTIF   0x83
-  #define EPNUM_CDC_1_OUT     0x04
-  #define EPNUM_CDC_1_IN      0x84
+  // #define EPNUM_CDC_1_NOTIF   0x83
+  // #define EPNUM_CDC_1_OUT     0x04
+  // #define EPNUM_CDC_1_IN      0x84
 #endif
 
 uint8_t const desc_fs_configuration[] =
@@ -138,8 +138,8 @@ uint8_t const desc_fs_configuration[] =
   // 1st CDC: Interface number, string index, EP notification address and size, EP data address (out, in) and size.
   TUD_CDC_DESCRIPTOR(ITF_NUM_CDC_0, 4, EPNUM_CDC_0_NOTIF, 8, EPNUM_CDC_0_OUT, EPNUM_CDC_0_IN, 64),
 
-  // 2nd CDC: Interface number, string index, EP notification address and size, EP data address (out, in) and size.
-  TUD_CDC_DESCRIPTOR(ITF_NUM_CDC_1, 4, EPNUM_CDC_1_NOTIF, 8, EPNUM_CDC_1_OUT, EPNUM_CDC_1_IN, 64),
+  // // 2nd CDC: Interface number, string index, EP notification address and size, EP data address (out, in) and size.
+  // TUD_CDC_DESCRIPTOR(ITF_NUM_CDC_1, 4, EPNUM_CDC_1_NOTIF, 8, EPNUM_CDC_1_OUT, EPNUM_CDC_1_IN, 64),
 };
 
 #if TUD_OPT_HIGH_SPEED
@@ -153,8 +153,8 @@ uint8_t const desc_hs_configuration[] =
   // 1st CDC: Interface number, string index, EP notification address and size, EP data address (out, in) and size.
   TUD_CDC_DESCRIPTOR(ITF_NUM_CDC_0, 4, EPNUM_CDC_0_NOTIF, 8, EPNUM_CDC_0_OUT, EPNUM_CDC_0_IN, 512),
 
-  // 2nd CDC: Interface number, string index, EP notification address and size, EP data address (out, in) and size.
-  TUD_CDC_DESCRIPTOR(ITF_NUM_CDC_1, 4, EPNUM_CDC_1_NOTIF, 8, EPNUM_CDC_1_OUT, EPNUM_CDC_1_IN, 512),
+  // // 2nd CDC: Interface number, string index, EP notification address and size, EP data address (out, in) and size.
+  // TUD_CDC_DESCRIPTOR(ITF_NUM_CDC_1, 4, EPNUM_CDC_1_NOTIF, 8, EPNUM_CDC_1_OUT, EPNUM_CDC_1_IN, 512),
 };
 
 // device qualifier is mostly similar to device descriptor since we don't change configuration based on speed

@@ -47,9 +47,12 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 static void led_blinking_task(void);
 static void cdc_task(void);
 
-static uint8_t MSG_LOWER[] = "lower case\r\n";
-static uint8_t MSG_UPPER[] = "UPPER CASE\r\n";
-static void echo_serial_port(uint8_t itf, uint8_t buf[], uint32_t count);
+//static uint8_t CDC_MSG0[] = "lower case\r\n";
+//static uint8_t CDC_MSG1[] = "UPPER CASE\r\n";
+static uint8_t CDC_MSG0[] = "<< debug window >>\r\n";
+//static void echo_serial_port(uint8_t itf, uint8_t buf[], uint32_t count);
+
+static uint8_t  CMD_SIGNATURE[7] = "BTLDCMD";
 
 /*------------- MAIN -------------*/
 int main(void) {
@@ -67,37 +70,38 @@ int main(void) {
   }
 
   while (1) {
-    tud_task(); // tinyusb device task
-    cdc_task();
-    led_blinking_task();
+  tud_task(); // tinyusb device task
+  cdc_task();
+  led_blinking_task();
+    
   }
 }
 
 // echo to either Serial0 or Serial1
 // with Serial0 as all lower case, Serial1 as all upper case
-static void echo_serial_port(uint8_t itf, uint8_t buf[], uint32_t count) {
-  uint8_t const case_diff = 'a' - 'A';
+// static void echo_serial_port(uint8_t itf, uint8_t buf[], uint32_t count) {
+  // //uint8_t const case_diff = 'a' - 'A';
 
-  for (uint32_t i = 0; i < count; i++) {
-    if (itf == 0) {
-      // echo back 1st port as lower case
-      if (isupper(buf[i])) buf[i] += case_diff;
-    } else {
-      // echo back 2nd port as upper case
-      if (islower(buf[i])) buf[i] -= case_diff;
-    }
+  // // for (uint32_t i = 0; i < count; i++) {
+    // // if (itf == 0) {
+      // // // echo back 1st port as lower case
+      // // if (isupper(buf[i])) buf[i] += case_diff;
+    // // } else {
+      // // // echo back 2nd port as upper case
+      // // if (islower(buf[i])) buf[i] -= case_diff;
+    // // }
 
-    tud_cdc_n_write_char(itf, buf[i]);
-  }
-  tud_cdc_n_write_flush(itf);
-}
+  // tud_cdc_n_write(itf, buf, count);
+  // tud_cdc_n_write_flush(itf);
+// }
 
 // Invoked when device is mounted
 void tud_mount_cb(void) {
   blink_interval_ms = BLINK_MOUNTED;
-  echo_serial_port(0, MSG_LOWER, 12);
-  echo_serial_port(1, MSG_UPPER, 12);
-
+  // echo_serial_port(0, CDC_MSG0, 12);
+  // echo_serial_port(1, CDC_MSG1, 12);
+  tud_cdc_n_write(0, CDC_MSG0, sizeof(CDC_MSG0) - 1);
+  tud_cdc_n_write_flush(0);
 }
 
 // Invoked when device is unmounted
@@ -110,25 +114,77 @@ void tud_umount_cb(void) {
 // USB CDC
 //--------------------------------------------------------------------+
 static void cdc_task(void) {
-  uint8_t itf;
+    int count;
+    if (!tud_cdc_n_available(0)) return;
 
-  for (itf = 0; itf < CFG_TUD_CDC; itf++) {
-    // connected() check for DTR bit
-    // Most but not all terminal client set this when making connection
-    // if ( tud_cdc_n_connected(itf) )
-    {
-      if (tud_cdc_n_available(itf)) {
-        uint8_t buf[64];
+    uint8_t buf[64];
+    char out_buf[64];
+    int read_count = tud_cdc_n_read(0, buf, sizeof(buf));
+    
+    
+    if (strncmp((char*) buf, (char*) CMD_SIGNATURE, sizeof(CMD_SIGNATURE)) == 0) {
+      
+        count = sprintf(out_buf, "Command received!\n");
+        tud_cdc_n_write(0, out_buf, count);
+        
+        switch(buf[sizeof(CMD_SIGNATURE)] - '0'){
+            case 1:
+            count = sprintf(out_buf, "Write command\n");
+            break;
 
-        uint32_t count = tud_cdc_n_read(itf, buf, sizeof(buf));
-
-        // echo back to both serial ports
-        echo_serial_port(0, buf, count);
-        echo_serial_port(1, buf, count);
-      }
+            case 2:
+            count = sprintf(out_buf, "Read command\n");
+            break;
+            
+            case 3:
+            count = sprintf(out_buf, "Reset command\n");
+            break;
+            
+            default:
+            count = sprintf(out_buf, "Valid signature, but invalid command.....\n");
+            break;
+       
+        }
+        tud_cdc_n_write(0, out_buf, count);
+        
+        
     }
-  }
+    else {
+        count = sprintf(out_buf, "Invalid command:\n--> ");
+        tud_cdc_n_write(0, out_buf, count);
+        tud_cdc_n_write(0, buf, read_count);
+        
+    }
+
+    // int i = atoi((char*) buf);
+    // i += 3;
+    // int count = sprintf(out_buf, "%d\n", i);
+    tud_cdc_n_write_flush(0);
+  
 }
+
+// static void cdc_task(void) {
+  // uint8_t itf;
+
+  // for (itf = 0; itf < CFG_TUD_CDC; itf++) {
+    // // connected() check for DTR bit
+    // // Most but not all terminal client set this when making connection
+    // // if ( tud_cdc_n_connected(itf) )
+    // {
+      // if (tud_cdc_n_available(itf)) {
+        // uint8_t buf[64];
+
+        // uint32_t count = tud_cdc_n_read(itf, buf, sizeof(buf));
+
+        // // echo back to both serial ports
+        // echo_serial_port(0, buf, count);
+        // echo_serial_port(1, buf, count);
+      // }
+    // }
+  // }
+// }
+
+
 
 // Invoked when cdc when line state changed e.g connected/disconnected
 // Use to reset to DFU when disconnect with 1200 bps

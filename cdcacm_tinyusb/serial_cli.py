@@ -20,28 +20,57 @@ def find_first_active_com_port():
             continue
     return None
 
-def main():
-    com_port = find_first_active_com_port()
-    if not com_port:
-        print("No active COM port found.")
-        return
+global response
+com_port = find_first_active_com_port()
+if not com_port:
+    print("No active COM port found.")
 
-    try:
-        with serial.Serial(com_port, 115200, timeout=1) as ser:
+with serial.Serial(com_port, 115200, timeout=1) as ser:
+    # ser.write(b'BTLDCMD1\n')
+    
+    ser.write(b'BTLDCMD1\n')
+    # ser.write(b'BTLDCMD1\n')
+    
+    
+    time.sleep(0.01)
+    response = b''
+    while ser.in_waiting:
+        response += ser.read_all()
+    print(response.decode('utf-8', errors='ignore'))
+    
+    
+    
+    
+    # pattern = 0xDEADBEEF
+    # pageData = pattern.to_bytes(4, byteorder='big') * 512
+    
+    # ser.write(pageData)
+    # time.sleep(0.01)
+    # response = b''
+    # while ser.in_waiting:
+    #     response += ser.read_all()
+    # print(response.decode('utf-8', errors='ignore'))
             
-            
-            
-            ser.write(b'BTLDCMD4\n')  # Sending command
-            time.sleep(0.01)
-            response = b''
-            while ser.in_waiting:
-                response += ser.read_all()
-            
-            print(response.decode('utf-8', errors='ignore'))
-            
-            print('Done!')
-    except Exception as e:
-        print(f"Error communicating with COM port: {e}")
+    # ser.write(b'BTLDCMD2\n')
+    
 
-if __name__ == "__main__":
-    main()
+
+
+
+
+# try:
+#     with serial.Serial(com_port, 115200, timeout=1) as ser:
+#         ser.write(b'BTLDCMD1\n')  # Sending command
+#         time.sleep(0.01)
+#         response = b''
+#         while ser.in_waiting:
+#             response += ser.read_all()
+        
+#         print(response.decode('utf-8', errors='ignore'))
+        
+#         print('Done!')
+        
+
+# except Exception as e:
+#     print(f"Error communicating with COM port: {e}")
+

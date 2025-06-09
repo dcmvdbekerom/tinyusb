@@ -30,6 +30,13 @@
 
 #include "bsp/board_api.h"
 #include "tusb.h"
+#include "flash.h" 
+
+
+#define USER_CODE_OFFSET  0x4000 //<USER CODE> flash start address (=16k).
+#define CDCACM_READ_BUF_SIZE 64
+#define CDCACM_WRITE_BUF_SIZE 64
+
 
 /* Blink pattern
  * - 250 ms  : device not mounted
@@ -47,12 +54,20 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 static void led_blinking_task(void);
 static void cdc_task(void);
 
-//static uint8_t CDC_MSG0[] = "lower case\r\n";
-//static uint8_t CDC_MSG1[] = "UPPER CASE\r\n";
 static uint8_t CDC_MSG0[] = "<< debug window >>\r\n";
-//static void echo_serial_port(uint8_t itf, uint8_t buf[], uint32_t count);
-
 static uint8_t  CMD_SIGNATURE[7] = "BTLDCMD";
+
+static uint8_t pageData[FLASH_PAGE_SIZE];
+static volatile uint32_t current_Page = 128; //beyond last page to prevent writes
+static volatile uint16_t currentPageOffset = 0;
+//uint16_t erase_page = 1;    
+
+
+void reset_pages(void);
+int write_page(uint32_t currentPage);
+void send_cmd(const char* cmd);
+
+
 
 /*------------- MAIN -------------*/
 int main(void) {
@@ -77,29 +92,10 @@ int main(void) {
   }
 }
 
-// echo to either Serial0 or Serial1
-// with Serial0 as all lower case, Serial1 as all upper case
-// static void echo_serial_port(uint8_t itf, uint8_t buf[], uint32_t count) {
-  // //uint8_t const case_diff = 'a' - 'A';
-
-  // // for (uint32_t i = 0; i < count; i++) {
-    // // if (itf == 0) {
-      // // // echo back 1st port as lower case
-      // // if (isupper(buf[i])) buf[i] += case_diff;
-    // // } else {
-      // // // echo back 2nd port as upper case
-      // // if (islower(buf[i])) buf[i] -= case_diff;
-    // // }
-
-  // tud_cdc_n_write(itf, buf, count);
-  // tud_cdc_n_write_flush(itf);
-// }
 
 // Invoked when device is mounted
 void tud_mount_cb(void) {
   blink_interval_ms = BLINK_MOUNTED;
-  // echo_serial_port(0, CDC_MSG0, 12);
-  // echo_serial_port(1, CDC_MSG1, 12);
   tud_cdc_n_write(0, CDC_MSG0, sizeof(CDC_MSG0) - 1);
   tud_cdc_n_write_flush(0);
 }
@@ -110,58 +106,143 @@ void tud_umount_cb(void) {
 }
 
 
+void Delay_ms(uint32_t ms) {
+    uint32_t start = board_millis();
+    while ((board_millis() - start) < ms);
+}
+
+
+void reset_pages(void){
+    current_Page = USER_CODE_OFFSET / FLASH_PAGE_SIZE;
+    currentPageOffset = 0;
+}
+
+
 //--------------------------------------------------------------------+
 // USB CDC
 //--------------------------------------------------------------------+
 static void cdc_task(void) {
-    int count;
+
     if (!tud_cdc_n_available(0)) return;
 
-    uint8_t buf[64];
-    char out_buf[64];
-    int read_count = tud_cdc_n_read(0, buf, sizeof(buf));
+    uint8_t buf[CDCACM_READ_BUF_SIZE];
+    int count = tud_cdc_n_read(0, buf, sizeof(buf));
     
+    if (count == 0) return;
     
     if (strncmp((char*) buf, (char*) CMD_SIGNATURE, sizeof(CMD_SIGNATURE)) == 0) {
       
-        count = sprintf(out_buf, "Command received!\n");
-        tud_cdc_n_write(0, out_buf, count);
-        
         switch(buf[sizeof(CMD_SIGNATURE)] - '0'){
+
+            case 0:
+            send_cmd("HELLO");
+            break;
+    
             case 1:
-            count = sprintf(out_buf, "Write command\n");
+            reset_pages();
             break;
 
-            case 2:
-            count = sprintf(out_buf, "Read command\n");
-            break;
-            
-            case 3:
-            count = sprintf(out_buf, "Reset command\n");
-            break;
-            
-            default:
-            count = sprintf(out_buf, "Valid signature, but invalid command.....\n");
-            break;
-       
-        }
-        tud_cdc_n_write(0, out_buf, count);
-        
-        
-    }
-    else {
-        count = sprintf(out_buf, "Invalid command:\n--> ");
-        tud_cdc_n_write(0, out_buf, count);
-        tud_cdc_n_write(0, buf, read_count);
-        
-    }
+            // case 2: //reset MCU
+            // write_page(current_Page);
+            // Delay_ms(100);
+            // ResetMCU();
+            // break;
 
-    // int i = atoi((char*) buf);
-    // i += 3;
-    // int count = sprintf(out_buf, "%d\n", i);
-    tud_cdc_n_write_flush(0);
-  
+        }      
+    }
+    // else {
+        // memcpy(pageData + currentPageOffset, (const void *)buf, sizeof(buf));
+        // currentPageOffset += sizeof(buf);
+
+        // if (currentPageOffset != FLASH_PAGE_SIZE) return;
+                    
+        // write_page(current_Page);
+
+        // send_cmd("BTLDCMD2");
+          
+    // }
 }
+
+
+void send_cmd(const char* cmd){
+   char buf[CDCACM_WRITE_BUF_SIZE];
+   int count = sprintf(buf, cmd);
+   tud_cdc_n_write(0, buf, count); 
+   tud_cdc_n_write_flush(0);
+}    
+
+
+int write_page(uint32_t currentPage){
+    
+    if (currentPageOffset == 0) return 0; //no write
+    
+    if (currentPageOffset < FLASH_PAGE_SIZE) { //fill remainder with zeros in case of partial write
+        memset(pageData + currentPageOffset, 0, sizeof(pageData) - currentPageOffset);
+    }
+    
+    int status = Flash_ProgramFullPage(currentPage, pageData);
+    
+    if (status){
+        return status;
+    }
+    
+    current_Page++;
+    currentPageOffset = 0;
+    
+    return 0;
+}
+
+// /* USER CODE BEGIN 4 */
+// void write_flash_sector(uint32_t currentPage) {
+  // uint32_t pageAddress = FLASH_BASE + (currentPage * SECTOR_SIZE);
+  // uint32_t SectorError;
+
+  // HAL_GPIO_WritePin(LED_1_PORT, LED_1_PIN, GPIO_PIN_SET);	
+  // FLASH_EraseInitTypeDef EraseInit;
+  // HAL_FLASH_Unlock();
+                                  
+
+  // /* Sector to the erase the flash memory (16, 32, 48 ... kbytes) */
+  // if ((currentPage == 16) || (currentPage == 32) ||
+      // (currentPage == 48) || (currentPage == 64) ||
+      // (currentPage % 128 == 0)) {
+    // EraseInit.TypeErase = FLASH_TYPEERASE_SECTORS;
+    // EraseInit.VoltageRange  = FLASH_VOLTAGE_RANGE_3;
+
+    // /* Specify sector number. Starts from 0x08004000 */
+    // EraseInit.Sector = erase_page++;
+                                              
+  
+
+    // /* This is also important! */
+    // EraseInit.NbSectors = 1;
+    // HAL_FLASHEx_Erase(&EraseInit, &SectorError);
+  // }
+
+  // uint32_t dat;
+  // for (int i = 0; i < SECTOR_SIZE; i += 4) {
+    // dat = pageData[i+3];
+    // dat <<= 8;
+    // dat += pageData[i+2];
+    // dat <<= 8;
+    // dat += pageData[i+1];
+    // dat <<= 8;
+    // dat += pageData[i];
+    // HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, pageAddress + i, dat);
+  // }
+  // HAL_GPIO_WritePin(LED_1_PORT, LED_1_PIN,GPIO_PIN_RESET);  
+  // HAL_FLASH_Lock();
+// }
+
+
+
+
+
+
+
+
+
+
 
 // static void cdc_task(void) {
   // uint8_t itf;

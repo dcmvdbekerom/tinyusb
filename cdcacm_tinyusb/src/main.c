@@ -57,7 +57,7 @@ static void cdc_task(void);
 static uint8_t CDC_MSG0[] = "<< debug window >>\r\n";
 static uint8_t  CMD_SIGNATURE[7] = "BTLDCMD";
 
-static uint8_t pageData[FLASH_PAGE_SIZE];
+__attribute__((aligned(FLASH_DWORD_SIZE))) static uint8_t pageData[FLASH_PAGE_SIZE];
 static volatile uint32_t current_Page = 128; //beyond last page to prevent writes
 static volatile uint16_t currentPageOffset = 0;
 //uint16_t erase_page = 1;    
@@ -135,32 +135,62 @@ static void cdc_task(void) {
         switch(buf[sizeof(CMD_SIGNATURE)] - '0'){
 
             case 0:
-            send_cmd("HELLO");
+            send_cmd("BTLDCMD0 received");
             break;
     
             case 1:
             reset_pages();
             break;
 
-            // case 2: //reset MCU
-            // write_page(current_Page);
-            // Delay_ms(100);
-            // ResetMCU();
-            // break;
+            case 2: //reset MCU
+            write_page(current_Page);
+            //Delay_ms(100);
+            //ResetMCU();
+            break;
+            
+            case 3: // set entire page to 0xEE and advance
+            
+            reset_pages();
+            int result;
+            
+            memset(pageData, 0xEE, FLASH_PAGE_SIZE); //sizeof(pageData)
+            currentPageOffset = FLASH_PAGE_SIZE;
+            result = write_page(current_Page);
+            
+            memset(pageData, 0xDD, FLASH_PAGE_SIZE); //sizeof(pageData)
+            currentPageOffset = FLASH_PAGE_SIZE;
+            result = write_page(current_Page);
+            
+            memset(pageData, 0xCC, FLASH_PAGE_SIZE); //sizeof(pageData)
+            currentPageOffset = FLASH_PAGE_SIZE;
+            result = write_page(current_Page);
+            
+            memset(pageData, 0xBB, FLASH_PAGE_SIZE); //sizeof(pageData)
+            currentPageOffset = FLASH_PAGE_SIZE;
+            result = write_page(current_Page);
+            
+            
+            
+            char buf2[64];
+            count = sprintf(buf2, "BTLDRSP-%d", result);
+            tud_cdc_n_write(0, buf2, count); 
+            tud_cdc_n_write_flush(0);
+            
+            break;
 
         }      
     }
-    // else {
-        // memcpy(pageData + currentPageOffset, (const void *)buf, sizeof(buf));
-        // currentPageOffset += sizeof(buf);
+    else {
+        memcpy(pageData + currentPageOffset, (const void *)buf, sizeof(buf));
+        currentPageOffset += sizeof(buf);
 
-        // if (currentPageOffset != FLASH_PAGE_SIZE) return;
+        if (currentPageOffset != FLASH_PAGE_SIZE) return;
                     
-        // write_page(current_Page);
+        write_page(current_Page);
 
-        // send_cmd("BTLDCMD2");
+        //send_cmd("BTLDCMD2");
           
-    // }
+    }
 }
 
 
@@ -191,79 +221,6 @@ int write_page(uint32_t currentPage){
     
     return 0;
 }
-
-// /* USER CODE BEGIN 4 */
-// void write_flash_sector(uint32_t currentPage) {
-  // uint32_t pageAddress = FLASH_BASE + (currentPage * SECTOR_SIZE);
-  // uint32_t SectorError;
-
-  // HAL_GPIO_WritePin(LED_1_PORT, LED_1_PIN, GPIO_PIN_SET);	
-  // FLASH_EraseInitTypeDef EraseInit;
-  // HAL_FLASH_Unlock();
-                                  
-
-  // /* Sector to the erase the flash memory (16, 32, 48 ... kbytes) */
-  // if ((currentPage == 16) || (currentPage == 32) ||
-      // (currentPage == 48) || (currentPage == 64) ||
-      // (currentPage % 128 == 0)) {
-    // EraseInit.TypeErase = FLASH_TYPEERASE_SECTORS;
-    // EraseInit.VoltageRange  = FLASH_VOLTAGE_RANGE_3;
-
-    // /* Specify sector number. Starts from 0x08004000 */
-    // EraseInit.Sector = erase_page++;
-                                              
-  
-
-    // /* This is also important! */
-    // EraseInit.NbSectors = 1;
-    // HAL_FLASHEx_Erase(&EraseInit, &SectorError);
-  // }
-
-  // uint32_t dat;
-  // for (int i = 0; i < SECTOR_SIZE; i += 4) {
-    // dat = pageData[i+3];
-    // dat <<= 8;
-    // dat += pageData[i+2];
-    // dat <<= 8;
-    // dat += pageData[i+1];
-    // dat <<= 8;
-    // dat += pageData[i];
-    // HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, pageAddress + i, dat);
-  // }
-  // HAL_GPIO_WritePin(LED_1_PORT, LED_1_PIN,GPIO_PIN_RESET);  
-  // HAL_FLASH_Lock();
-// }
-
-
-
-
-
-
-
-
-
-
-
-// static void cdc_task(void) {
-  // uint8_t itf;
-
-  // for (itf = 0; itf < CFG_TUD_CDC; itf++) {
-    // // connected() check for DTR bit
-    // // Most but not all terminal client set this when making connection
-    // // if ( tud_cdc_n_connected(itf) )
-    // {
-      // if (tud_cdc_n_available(itf)) {
-        // uint8_t buf[64];
-
-        // uint32_t count = tud_cdc_n_read(itf, buf, sizeof(buf));
-
-        // // echo back to both serial ports
-        // echo_serial_port(0, buf, count);
-        // echo_serial_port(1, buf, count);
-      // }
-    // }
-  // }
-// }
 
 
 

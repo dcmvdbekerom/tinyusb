@@ -72,6 +72,11 @@ int write_last_page(uint32_t currentPage, uint32_t res);
 int main(void) {
   board_init();
 
+  if (board_button_read()){
+    JumpToApplication(USER_CODE_OFFSET);
+  }
+
+
   // init device stack on configured roothub port
   tusb_rhport_init_t dev_init = {
     .role = TUSB_ROLE_DEVICE,
@@ -84,6 +89,17 @@ int main(void) {
   }
 
   while (1) {
+      
+      
+    // if (board_button_read()){
+        // blink_interval_ms = 1000;
+        
+    // }
+    // else{
+        // blink_interval_ms = 100;
+    // }
+
+      
   tud_task(); // tinyusb device task
   cdc_task();
   led_blinking_task();
@@ -144,8 +160,10 @@ static void cdc_task(void) {
             case 2: //reset MCU
             int res = buf[sizeof(CMD_SIGNATURE) + 1];
             write_last_page(current_Page, res);
-            Delay_ms(500);
-            ResetMCU();
+            Delay_ms(100);
+            //ResetMCU();
+            JumpToApplication(USER_CODE_OFFSET);
+            
             break;
             
             case 3: // set entire page to 0xEE and advance
@@ -188,7 +206,7 @@ static void cdc_task(void) {
                     
         write_page(current_Page);
 
-        //send_cmd("BTLDCMD2");
+        send_cmd("BTLDCMD2");
           
     }
 }

@@ -27,6 +27,7 @@ typedef enum {
 } FlashStatus;
 
 void ResetMCU(void);
+void JumpToApplication(uint32_t user_code_offset);
 FlashStatus Flash_ProgramFullPage(uint32_t current_page, void *source_data);
 
 #endif // _FLASH_H_

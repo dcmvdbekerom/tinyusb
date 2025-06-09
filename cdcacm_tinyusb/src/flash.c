@@ -12,6 +12,29 @@ void ResetMCU(void){
     __NVIC_SystemReset();
 }
 
+
+void JumpToApplication(uint32_t user_code_offset){
+
+    typedef void (*pFunction)(void);
+    pFunction Jump_To_Application;
+    uint32_t JumpAddress;
+    
+        
+        __disable_irq();
+    NVIC->ICER[0] = 0xFFFFFFFF; // Disable interrupts
+    NVIC->ICPR[0] = 0xFFFFFFFF; // Clear pending
+    SysTick->CTRL = 0;          // Stop SysTick
+    RCC->CSR |= RCC_CSR_RMVF;    
+    
+    JumpAddress = *(__IO uint32_t*) (FLASH_BASE + user_code_offset + 4);
+    Jump_To_Application = (pFunction) JumpAddress;
+    SCB->VTOR = FLASH_BASE + user_code_offset;
+    __set_MSP(*(uint32_t *) (FLASH_BASE + user_code_offset));
+    Jump_To_Application(); 
+    while(1){}; // we should never get here
+}
+
+
 uint32_t Flash_Calc_Address(uint32_t offset){
     return FLASH_BASE + offset;
 }
@@ -105,7 +128,6 @@ __attribute__((section(".ramfunc"))) FlashStatus Flash_ProgramDword(uint32_t dst
 
     return FLASH_OK;
 }
-
 
 
 

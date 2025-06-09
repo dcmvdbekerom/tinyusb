@@ -99,7 +99,7 @@ void board_init(void) {
     BUTTON_PORT->MODER = (BUTTON_PORT->MODER & ~button_msk2) | (button_pin2 * 0b00);
     
     // Set pull-up or pull-down depending on BUTTON_STATE_ACTIVE
-    uint32_t pupd_val = (BUTTON_STATE_ACTIVE ? 0b10 : 0b01);
+    uint32_t pupd_val = (BUTTON_STATE_ACTIVE ? 0b01 : 0b10);
     BUTTON_PORT->PUPDR = (BUTTON_PORT->PUPDR & ~button_msk2) | (button_pin2 * pupd_val); 
 
   

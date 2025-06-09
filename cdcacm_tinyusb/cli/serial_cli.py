@@ -38,12 +38,11 @@ def read_response(ser):
 
 with serial.Serial(com_port, 115200, timeout=1) as ser, open('miniblink.bin', 'rb') as f:
 
-    # Send handshake
+    # Send id request
     print('MCU repsonse:',end=' ')
     ser.write(b'BTLDCMD0\n')
     response = read_response(ser)
     print(response)
-    # ser.write(b'BTLDCMD1\n')
     
     # Reset pages
     print('Resetting pages...', end=' ')
@@ -55,8 +54,8 @@ with serial.Serial(com_port, 115200, timeout=1) as ser, open('miniblink.bin', 'r
         
         data = f.read(PAGE_SIZE)          
         
-        # dword = 0x01234567_89ABCDEF_00112233_44556677
-        # data = dword.to_bytes(16, byteorder='little')*2
+        # dword = 0x01234567_89ABCDEF_00112233
+        # data = dword.to_bytes(12, byteorder='little')*3
         
         print(f'Writing {len(data):d} bytes...')
         ser.write(data)
@@ -67,70 +66,7 @@ with serial.Serial(com_port, 115200, timeout=1) as ser, open('miniblink.bin', 'r
             
             res = len(data) % BUF_SIZE
             cmd2 = b'BTLDCMD2' + res.to_bytes(1)
-            time.sleep(0.01)
             ser.write(cmd2)
             print('Done!')   
             
             break
-        
-    
-    # # Reset MCU
-    
-    
-
-    
-    
-    # print('\nWrite next page with 0xEE...')
-    # ser.write(b'BTLDCMD3\n')
-    # print('Done!')
-    # response = ''
-    # while response == '':
-    #     response = read_response(ser)
-    # print('MCU repsonse:', response)
-    
-    # # Write data
-    # dword = 0xDEADBEEF01234567
-    # rowData = dword.to_bytes(8, byteorder='little') * 32 #32 dwords per row
-    
-    # for row in range(18):
-    #     print('Writing data row={:d}...'.format(row), end = ' ')
-    #     ser.write(rowData)
-    #     response = read_response(ser)
-    #     print(response)
-    #     print('Done!')
-        
-    # # Reset MCU
-    # print('Resetting MCU...', end=' ')
-    # ser.write(b'BTLDCMD2\n')
-    # print('Done!')
-    
-    
-    # time.sleep(0.01)
-    # response = b''
-    # while ser.in_waiting:
-    #     response += ser.read_all()
-    # print(response.decode('utf-8', errors='ignore'))
-            
-    # ser.write(b'BTLDCMD2\n')
-    
-
-
-
-
-
-# try:
-#     with serial.Serial(com_port, 115200, timeout=1) as ser:
-#         ser.write(b'BTLDCMD1\n')  # Sending command
-#         time.sleep(0.01)
-#         response = b''
-#         while ser.in_waiting:
-#             response += ser.read_all()
-        
-#         print(response.decode('utf-8', errors='ignore'))
-        
-#         print('Done!')
-        
-
-# except Exception as e:
-#     print(f"Error communicating with COM port: {e}")
-

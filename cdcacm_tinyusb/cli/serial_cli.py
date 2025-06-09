@@ -9,6 +9,9 @@ import serial
 import serial.tools.list_ports
 import time 
 
+PAGE_SIZE = 2048
+BUF_SIZE = 64
+
 def find_first_active_com_port():
     ports = list(serial.tools.list_ports.comports())
     for port in ports:
@@ -33,7 +36,7 @@ def read_response(ser):
     return response.decode('utf-8', errors='ignore')
 
 
-with serial.Serial(com_port, 115200, timeout=1) as ser:
+with serial.Serial(com_port, 115200, timeout=1) as ser, open('miniblink.bin', 'rb') as f:
 
     # Send handshake
     print('MCU repsonse:',end=' ')
@@ -47,6 +50,36 @@ with serial.Serial(com_port, 115200, timeout=1) as ser:
     ser.write(b'BTLDCMD1\n')
     print('Done!')    
     
+    
+    while True:
+        
+        data = f.read(PAGE_SIZE)          
+        
+        # dword = 0x01234567_89ABCDEF_00112233_44556677
+        # data = dword.to_bytes(16, byteorder='little')*2
+        
+        print(f'Writing {len(data):d} bytes...')
+        ser.write(data)
+        
+        if len(data) != PAGE_SIZE:
+
+            print('Resetting MCU...', end=' ')
+            
+            res = len(data) % BUF_SIZE
+            cmd2 = b'BTLDCMD2' + res.to_bytes(1)
+            time.sleep(0.01)
+            ser.write(cmd2)
+            print('Done!')   
+            
+            break
+        
+    
+    # # Reset MCU
+    
+    
+
+    
+    
     # print('\nWrite next page with 0xEE...')
     # ser.write(b'BTLDCMD3\n')
     # print('Done!')
@@ -55,19 +88,21 @@ with serial.Serial(com_port, 115200, timeout=1) as ser:
     #     response = read_response(ser)
     # print('MCU repsonse:', response)
     
-    # Write data
-    dword = 0xDEADBEEF01234567
-    rowData = dword.to_bytes(8, byteorder='big') * 32 #32 dwords per row
+    # # Write data
+    # dword = 0xDEADBEEF01234567
+    # rowData = dword.to_bytes(8, byteorder='little') * 32 #32 dwords per row
     
-    for row in range(8):
-        print('Writing data row={:d}...'.format(row), end = ' ')
-        ser.write(rowData)
-        print('Done!')
+    # for row in range(18):
+    #     print('Writing data row={:d}...'.format(row), end = ' ')
+    #     ser.write(rowData)
+    #     response = read_response(ser)
+    #     print(response)
+    #     print('Done!')
         
-    # Reset MCU
-    print('Resetting MCU...', end=' ')
-    ser.write(b'BTLDCMD2\n')
-    print('Done!')
+    # # Reset MCU
+    # print('Resetting MCU...', end=' ')
+    # ser.write(b'BTLDCMD2\n')
+    # print('Done!')
     
     
     # time.sleep(0.01)

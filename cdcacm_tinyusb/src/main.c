@@ -34,8 +34,7 @@
 
 
 #define USER_CODE_OFFSET  0x4000 //<USER CODE> flash start address (=16k).
-#define CDCACM_READ_BUF_SIZE 64
-#define CDCACM_WRITE_BUF_SIZE 64
+#define CDCACM_BUF_SIZE 64
 
 
 /* Blink pattern
@@ -64,9 +63,9 @@ static volatile uint16_t currentPageOffset = 0;
 
 
 void reset_pages(void);
-int write_page(uint32_t currentPage);
 void send_cmd(const char* cmd);
-
+int write_page(uint32_t currentPage);
+int write_last_page(uint32_t currentPage, uint32_t res);
 
 
 /*------------- MAIN -------------*/
@@ -125,7 +124,7 @@ static void cdc_task(void) {
 
     if (!tud_cdc_n_available(0)) return;
 
-    uint8_t buf[CDCACM_READ_BUF_SIZE];
+    uint8_t buf[CDCACM_BUF_SIZE];
     int count = tud_cdc_n_read(0, buf, sizeof(buf));
     
     if (count == 0) return;
@@ -134,18 +133,19 @@ static void cdc_task(void) {
       
         switch(buf[sizeof(CMD_SIGNATURE)] - '0'){
 
-            case 0:
+            case 0: //test communication
             send_cmd("BTLDCMD0 received");
             break;
     
-            case 1:
+            case 1: //reset pages
             reset_pages();
             break;
 
             case 2: //reset MCU
-            write_page(current_Page);
-            //Delay_ms(100);
-            //ResetMCU();
+            int res = buf[sizeof(CMD_SIGNATURE) + 1];
+            write_last_page(current_Page, res);
+            Delay_ms(500);
+            ResetMCU();
             break;
             
             case 3: // set entire page to 0xEE and advance
@@ -195,7 +195,7 @@ static void cdc_task(void) {
 
 
 void send_cmd(const char* cmd){
-   char buf[CDCACM_WRITE_BUF_SIZE];
+   char buf[CDCACM_BUF_SIZE];
    int count = sprintf(buf, cmd);
    tud_cdc_n_write(0, buf, count); 
    tud_cdc_n_write_flush(0);
@@ -205,10 +205,6 @@ void send_cmd(const char* cmd){
 int write_page(uint32_t currentPage){
     
     if (currentPageOffset == 0) return 0; //no write
-    
-    if (currentPageOffset < FLASH_PAGE_SIZE) { //fill remainder with zeros in case of partial write
-        memset(pageData + currentPageOffset, 0, sizeof(pageData) - currentPageOffset);
-    }
     
     int status = Flash_ProgramFullPage(currentPage, pageData);
     
@@ -221,6 +217,26 @@ int write_page(uint32_t currentPage){
     
     return 0;
 }
+
+
+int write_last_page(uint32_t currentPage, uint32_t res){
+    
+    if (currentPageOffset == 0) return 0; //no write
+    
+    uint32_t trim = res ? CDCACM_BUF_SIZE - res : 0;
+    
+    if (currentPageOffset < FLASH_PAGE_SIZE) { // in case of partial write empty rest of buffer
+        memset(pageData + currentPageOffset - trim, 0xFF, sizeof(pageData) - currentPageOffset + trim);
+    }
+    
+    return write_page(currentPage);
+}
+
+
+
+
+
+
 
 
 

@@ -27,6 +27,7 @@ settings/
 .settings/
 .vscode/
 .gdb_history
+/hw/mcu/st/
 /examples/*/*/build*
 test_old/
 tests_obsolete/

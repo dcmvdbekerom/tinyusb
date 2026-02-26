@@ -89,9 +89,7 @@ static void init_tinyusb(void) {
   };
   tusb_init(BOARD_TUH_RHPORT, &host_init);
 
-  if (board_init_after_tusb) {
-    board_init_after_tusb();
-  }
+  board_init_after_tusb();
 }
 
 int main(void) {
@@ -101,6 +99,7 @@ int main(void) {
 #if CFG_TUSB_OS == OPT_OS_FREERTOS
   init_freertos_task();
 #else
+  board_delay(100); // wait for uart to be ready
   init_tinyusb();
   while (1) {
     tuh_task();     // tinyusb host task
@@ -131,11 +130,10 @@ void tuh_mount_cb(uint8_t daddr) {
   }
   if (XFER_RESULT_SUCCESS != xfer_result) {
     uint16_t* serial = (uint16_t*)(uintptr_t) desc.serial;
-    serial[0] = (uint16_t) ((TUSB_DESC_STRING << 8) | (2 * 3 + 2));
-    serial[1] = 'n';
-    serial[2] = '/';
-    serial[3] = 'a';
-    serial[4] = 0;
+
+    serial[0] = (uint16_t)((TUSB_DESC_STRING << 8) | (2 * 1 + 2));
+    serial[1] = '0'; // simply 0
+    serial[2] = 0;
   }
   print_utf16((uint16_t*)(uintptr_t) desc.serial, sizeof(desc.serial)/2);
   printf("\r\n");
@@ -173,9 +171,7 @@ void tuh_mount_cb(uint8_t daddr) {
   printf("\r\n");
 
   printf("  iSerialNumber       %u     ", desc.device.iSerialNumber);
-  printf((char*)desc.serial); // serial is already to UTF-8
-  printf("\r\n");
-
+  printf("%s\r\n", (char*)desc.serial); // serial is already to UTF-8
   printf("  bNumConfigurations  %u\r\n", desc.device.bNumConfigurations);
 }
 
@@ -268,7 +264,7 @@ void led_blinking_task(void* param) {
 
 #define BLINKY_STACK_SIZE   configMINIMAL_STACK_SIZE
 
-#if TUSB_MCU_VENDOR_ESPRESSIF
+#ifdef ESP_PLATFORM
   #define USB_STACK_SIZE     4096
 #else
   // Increase stack size when debug log is enabled
@@ -285,7 +281,7 @@ StackType_t  usb_stack[USB_STACK_SIZE];
 StaticTask_t usb_taskdef;
 #endif
 
-#if TUSB_MCU_VENDOR_ESPRESSIF
+#ifdef ESP_PLATFORM
 void app_main(void) {
   main();
 }
@@ -293,6 +289,7 @@ void app_main(void) {
 
 void usb_host_task(void *param) {
   (void) param;
+  board_delay(100); // wait for uart to be ready
   init_tinyusb();
   while (1) {
     tuh_task();
@@ -308,8 +305,8 @@ void init_freertos_task(void) {
   xTaskCreate(usb_host_task, "usbh", USB_STACK_SIZE, NULL, configMAX_PRIORITIES - 1, NULL);
 #endif
 
-  // skip starting scheduler (and return) for ESP32-S2 or ESP32-S3
-#if !TUSB_MCU_VENDOR_ESPRESSIF
+  // only start scheduler for non-espressif mcu
+#ifndef ESP_PLATFORM
   vTaskStartScheduler();
 #endif
 }

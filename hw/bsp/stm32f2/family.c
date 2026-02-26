@@ -31,7 +31,6 @@
 #include "stm32f2xx_hal.h"
 #include "bsp/board_api.h"
 #include "board.h"
-
 //--------------------------------------------------------------------+
 // Forward USB interrupt events to TinyUSB IRQ Handler
 //--------------------------------------------------------------------+
@@ -56,6 +55,9 @@ void board_init(void) {
   #if CFG_TUSB_OS == OPT_OS_NONE
   // 1ms tick timer
   SysTick_Config(SystemCoreClock / 1000);
+  #elif CFG_TUSB_OS == OPT_OS_FREERTOS
+  // Explicitly disable systick to prevent its ISR from running before scheduler start
+  SysTick->CTRL &= ~1U;
   #endif
 
   all_rcc_clk_enable();
@@ -102,9 +104,12 @@ void board_init(void) {
   /* Enable USB FS Clocks */
   __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
 
+#if CFG_TUD_ENABLED
   // Enable VBUS sense (B device) via pin PA9
-  USB_OTG_FS->GCCFG &= ~USB_OTG_GCCFG_NOVBUSSENS;
-  USB_OTG_FS->GCCFG |= USB_OTG_GCCFG_VBUSBSEN;
+  tud_configure_dwc2_t cfg = CFG_TUD_CONFIGURE_DWC2_DEFAULT;
+  cfg.vbus_sensing = true;
+  tud_configure(0, TUD_CFGID_DWC2, &cfg);
+#endif
 }
 
 //--------------------------------------------------------------------+

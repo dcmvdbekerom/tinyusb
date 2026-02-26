@@ -49,7 +49,7 @@ typedef struct {
 //--------------------------------------------------------------------+
 
 #ifdef UART_DEV
-UART_HandleTypeDef UartHandle = {
+static UART_HandleTypeDef UartHandle = {
   .Instance = UART_DEV,
   .Init = {
     .BaudRate = CFG_BOARD_UART_BAUDRATE,
@@ -98,6 +98,10 @@ static void trace_etm_init(void) {
 #endif
 
 void board_init(void) {
+  SCB_EnableICache();
+
+  HAL_Init();
+
   // Implemented in board.h
   SystemClock_Config();
 
@@ -123,11 +127,11 @@ void board_init(void) {
 
 #if CFG_TUSB_OS == OPT_OS_NONE
   // 1ms tick timer
-  SysTick_Config(SystemCoreClock / 1000);
+  SysTick_Config(SystemCoreClock / 1000u);
 
 #elif CFG_TUSB_OS == OPT_OS_FREERTOS
-  // Explicitly disable systick to prevent its ISR runs before scheduler start
-  SysTick->CTRL &= ~1U;
+  // Explicitly disable systick to prevent its ISR from running before scheduler start
+  SysTick->CTRL &= ~1UL;
 
   // If freeRTOS is used, IRQ priority is limit by max syscall ( smaller is higher )
   #ifdef USB_OTG_FS_PERIPH_BASE
@@ -176,17 +180,13 @@ void board_init(void) {
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  // Enable VBUS sense (B device) via pin PA9
-  USB_OTG_FS->GCCFG |= USB_OTG_GCCFG_VBDEN;
-#else
-  // Disable VBUS sense (B device) via pin PA9
-  USB_OTG_FS->GCCFG &= ~USB_OTG_GCCFG_VBDEN;
-
-  // B-peripheral session valid override enable
-  USB_OTG_FS->GOTGCTL |= USB_OTG_GOTGCTL_BVALOEN;
-  USB_OTG_FS->GOTGCTL |= USB_OTG_GOTGCTL_BVALOVAL;
 #endif // vbus sense
+
+#if CFG_TUD_ENABLED && BOARD_TUD_RHPORT == 0
+  tud_configure_dwc2_t cfg = CFG_TUD_CONFIGURE_DWC2_DEFAULT;
+  cfg.vbus_sensing = OTG_FS_VBUS_SENSE;
+  tud_configure(0, TUD_CFGID_DWC2, &cfg);
+#endif
 
   //------------- USB HS -------------//
 #if (CFG_TUD_ENABLED && BOARD_TUD_RHPORT == 1) || (CFG_TUH_ENABLED && BOARD_TUH_RHPORT == 1)
@@ -212,28 +212,24 @@ void board_init(void) {
   __HAL_RCC_USB1_OTG_HS_ULPI_CLK_ENABLE();
   __HAL_RCC_USB1_OTG_HS_CLK_ENABLE();
 
-#if OTG_HS_VBUS_SENSE
-  #error OTG HS VBUS Sense enabled is not implemented
-#else
-  // No VBUS sense
-  USB_OTG_HS->GCCFG &= ~USB_OTG_GCCFG_VBDEN;
-
-  // B-peripheral session valid override enable
-  USB_OTG_HS->GOTGCTL |= USB_OTG_GOTGCTL_BVALOEN;
-  USB_OTG_HS->GOTGCTL |= USB_OTG_GOTGCTL_BVALOVAL;
-#endif
-
-  // Force device mode
-  USB_OTG_HS->GUSBCFG &= ~USB_OTG_GUSBCFG_FHMOD;
-  USB_OTG_HS->GUSBCFG |= USB_OTG_GUSBCFG_FDMOD;
+  #if CFG_TUD_ENABLED && BOARD_TUD_RHPORT == 1
+  tud_configure_dwc2_t cfg = CFG_TUD_CONFIGURE_DWC2_DEFAULT;
+  cfg.vbus_sensing = OTG_HS_VBUS_SENSE;
+  tud_configure(1, TUD_CFGID_DWC2, &cfg);
+  #endif
 #endif
 
   HAL_PWREx_EnableUSBVoltageDetector();
 
   board_init2(); // optional init
 
+  // Turn off device vbus
+#if CFG_TUD_ENABLED
+  board_vbus_set(BOARD_TUD_RHPORT, false);
+#endif
+  // Turn on host vbus
 #if CFG_TUH_ENABLED
-  board_vbus_set(BOARD_TUH_RHPORT, 1);
+  board_vbus_set(BOARD_TUH_RHPORT, true);
 #endif
 
 }

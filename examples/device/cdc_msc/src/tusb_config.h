@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef _TUSB_CONFIG_H_
-#define _TUSB_CONFIG_H_
+#ifndef TUSB_CONFIG_H_
+#define TUSB_CONFIG_H_
 
 #ifdef __cplusplus
  extern "C" {
@@ -87,7 +87,7 @@
 //--------------------------------------------------------------------
 
 #ifndef CFG_TUD_ENDPOINT0_SIZE
-#define CFG_TUD_ENDPOINT0_SIZE    64
+#define CFG_TUD_ENDPOINT0_SIZE   64
 #endif
 
 //------------- CLASS -------------//
@@ -97,11 +97,15 @@
 #define CFG_TUD_MIDI             0
 #define CFG_TUD_VENDOR           0
 
+#define CFG_TUD_CDC_NOTIFY        1 // Enable use of notification endpoint
+
 // CDC FIFO size of TX and RX
 #define CFG_TUD_CDC_RX_BUFSIZE   (TUD_OPT_HIGH_SPEED ? 512 : 64)
 #define CFG_TUD_CDC_TX_BUFSIZE   (TUD_OPT_HIGH_SPEED ? 512 : 64)
 
 // CDC Endpoint transfer buffer size, more is faster
+// Leave it as default size (512 for HS, 64 for FS) unless your host application
+// is able to send ZLP (Zero Length Packet) to terminate transfer !
 #define CFG_TUD_CDC_EP_BUFSIZE   (TUD_OPT_HIGH_SPEED ? 512 : 64)
 
 // MSC Buffer size of Device Mass storage
@@ -111,4 +115,4 @@
  }
 #endif
 
-#endif /* _TUSB_CONFIG_H_ */
+#endif /* TUSB_CONFIG_H_ */

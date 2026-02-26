@@ -59,7 +59,9 @@ void board_init(void) {
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+#if defined(GPIOD)
   __HAL_RCC_GPIOD_CLK_ENABLE();
+#endif
 #if defined(GPIOE)
   __HAL_RCC_GPIOE_CLK_ENABLE();
 #endif
@@ -76,6 +78,8 @@ void board_init(void) {
   // 1ms tick timer
   SysTick_Config(SystemCoreClock / 1000);
 #elif CFG_TUSB_OS == OPT_OS_FREERTOS
+  // Explicitly disable systick to prevent its ISR from running before scheduler start
+  SysTick->CTRL &= ~1U;
   // If freeRTOS is used, IRQ priority is limit by max syscall ( smaller is higher )
 #if defined(USB_OTG_FS)
   NVIC_SetPriority(OTG_FS_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY );
@@ -143,7 +147,7 @@ void board_init(void) {
   GPIO_InitStruct.Pin = (GPIO_PIN_11 | GPIO_PIN_12);
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 #if defined(USB_OTG_FS)
   GPIO_InitStruct.Alternate = GPIO_AF10_OTG_FS;
 #else
@@ -166,10 +170,16 @@ void board_init(void) {
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 #endif
 
-  /* Enable USB FS Clocks */
 #if defined(USB_OTG_FS)
+  /* Enable USB FS Clocks */
   __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
-  board_vbus_sense_init();
+
+  #if CFG_TUD_ENABLED
+  /* Set Vbus sense */
+  tud_configure_dwc2_t cfg = CFG_TUD_CONFIGURE_DWC2_DEFAULT;
+  cfg.vbus_sensing = VBUS_SENSE_EN;
+  tud_configure(0, TUD_CFGID_DWC2, &cfg);
+  #endif
 #else
   __HAL_RCC_USB_CLK_ENABLE();
 #endif

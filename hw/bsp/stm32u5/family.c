@@ -51,14 +51,21 @@ TU_ATTR_UNUSED static void Error_Handler(void) {
 //--------------------------------------------------------------------+
 // Forward USB interrupt events to TinyUSB IRQ Handler
 //--------------------------------------------------------------------+
+#ifdef USB_DRD_FS
+void USB_IRQHandler(void) {
+  tusb_int_handler(0, true);
+}
+#endif
+#ifdef USB_OTG_FS
 void OTG_FS_IRQHandler(void) {
-  tud_int_handler(0);
+  tusb_int_handler(0, true);
 }
-
+#endif
+#ifdef USB_OTG_HS
 void OTG_HS_IRQHandler(void) {
-  tud_int_handler(0);
+  tusb_int_handler(0, true);
 }
-
+#endif
 //--------------------------------------------------------------------+
 // MACRO TYPEDEF CONSTANT ENUM
 //--------------------------------------------------------------------+
@@ -90,6 +97,9 @@ void board_init(void) {
 #if CFG_TUSB_OS == OPT_OS_NONE
   // 1ms tick timer
   SysTick_Config(SystemCoreClock / 1000);
+#elif CFG_TUSB_OS == OPT_OS_FREERTOS
+  // Explicitly disable systick to prevent its ISR from running before scheduler start
+  SysTick->CTRL &= ~1U;
 #endif
 
   GPIO_InitTypeDef GPIO_InitStruct;
@@ -169,17 +179,13 @@ void board_init(void) {
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  // Enable VBUS sense (B device) via pin PA9
-  USB_OTG_FS->GCCFG |= USB_OTG_GCCFG_VBDEN;
-  #else
-  // Disable VBUS sense (B device) via pin PA9
-  USB_OTG_FS->GCCFG &= ~USB_OTG_GCCFG_VBDEN;
-
-  // B-peripheral session valid override enable
-  USB_OTG_FS->GOTGCTL |= USB_OTG_GOTGCTL_BVALOEN;
-  USB_OTG_FS->GOTGCTL |= USB_OTG_GOTGCTL_BVALOVAL;
   #endif // vbus sense
+
+#if CFG_TUD_ENABLED
+  tud_configure_dwc2_t cfg = CFG_TUD_CONFIGURE_DWC2_DEFAULT;
+  cfg.vbus_sensing = VBUS_SENSE_EN;
+  tud_configure(0, TUD_CFGID_DWC2, &cfg);
+#endif
 
   /* Enable USB power on Pwrctrl CR2 register */
   HAL_PWREx_EnableVddUSB();
@@ -208,13 +214,15 @@ void board_init(void) {
   /*Configuring the SYSCFG registers OTG_HS PHY*/
   HAL_SYSCFG_EnableOTGPHY(SYSCFG_OTG_HS_PHY_ENABLE);
 
-  // Disable VBUS sense (B device)
-  USB_OTG_HS->GCCFG &= ~USB_OTG_GCCFG_VBDEN;
-
-  // B-peripheral session valid override enable
-  USB_OTG_HS->GCCFG |= USB_OTG_GCCFG_VBVALEXTOEN;
-  USB_OTG_HS->GCCFG |= USB_OTG_GCCFG_VBVALOVAL;
+#if CFG_TUD_ENABLED
+  tud_configure_dwc2_t cfg = CFG_TUD_CONFIGURE_DWC2_DEFAULT;
+  cfg.vbus_sensing = VBUS_SENSE_EN;
+  tud_configure(0, TUD_CFGID_DWC2, &cfg);
+#endif
 #endif // USB_OTG_FS
+
+  /* Non-standard VBus sense settings */
+  board_vbus_sense_init();
 }
 
 //--------------------------------------------------------------------+

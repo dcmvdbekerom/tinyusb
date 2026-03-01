@@ -71,16 +71,16 @@ enum  {
 
 static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 
-#define URL  "example.tinyusb.org/webusb-serial/index.html"
+// #define URL  "example.tinyusb.org/webusb-serial/index.html"
 
-const tusb_desc_webusb_url_t desc_url = {
-  .bLength         = 3 + sizeof(URL) - 1,
-  .bDescriptorType = 3, // WEBUSB URL type
-  .bScheme         = 1, // 0: http, 1: https
-  .url             = URL
-};
+// const tusb_desc_webusb_url_t desc_url = {
+  // .bLength         = 3 + sizeof(URL) - 1,
+  // .bDescriptorType = 3, // WEBUSB URL type
+  // .bScheme         = 1, // 0: http, 1: https
+  // .url             = URL
+// };
 
-static bool web_serial_connected = false;
+// static bool web_serial_connected = false;
 
 //------------- prototypes -------------//
 void led_blinking_task(void);
@@ -101,24 +101,24 @@ int main(void) {
 
   while (1) {
     tud_task(); // tinyusb device task
-    tud_cdc_write_flush();
-    led_blinking_task();
+    //tud_cdc_write_flush();
+    //led_blinking_task();
   }
 }
 
-// send characters to both CDC and WebUSB
-static void echo_all(const uint8_t buf[], uint32_t count) {
-  // echo to web serial
-  if (web_serial_connected) {
-    tud_vendor_write(buf, count);
-    tud_vendor_write_flush();
-  }
+// // send characters to both CDC and WebUSB
+// static void echo_all(const uint8_t buf[], uint32_t count) {
+  // // echo to web serial
+  // if (web_serial_connected) {
+    // tud_vendor_write(buf, count);
+    // tud_vendor_write_flush();
+  // }
 
-  // echo to cdc
-  if (tud_cdc_connected()) {
-    tud_cdc_write(buf, count);
-  }
-}
+  // // echo to cdc
+  // if (tud_cdc_connected()) {
+    // tud_cdc_write(buf, count);
+  // }
+// }
 
 //--------------------------------------------------------------------+
 // Device callbacks
@@ -151,78 +151,91 @@ void tud_resume_cb(void) {
 // WebUSB use vendor class
 //--------------------------------------------------------------------+
 
-// Invoked when a control transfer occurred on an interface of this class
-// Driver response accordingly to the request and the transfer stage (setup/data/ack)
-// return false to stall control endpoint (e.g unsupported request)
-bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_request_t const* request) {
-  // nothing to with DATA & ACK stage
-  if (stage != CONTROL_STAGE_SETUP) {
-    return true;
-  }
+// // Invoked when a control transfer occurred on an interface of this class
+// // Driver response accordingly to the request and the transfer stage (setup/data/ack)
+// // return false to stall control endpoint (e.g unsupported request)
+// bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_request_t const* request) {
+  // // nothing to with DATA & ACK stage
+  // if (stage != CONTROL_STAGE_SETUP) {
+    // return true;
+  // }
 
-  switch (request->bmRequestType_bit.type) {
-    case TUSB_REQ_TYPE_VENDOR:
-      switch (request->bRequest) {
-        case VENDOR_REQUEST_WEBUSB:
-          // match vendor request in BOS descriptor
-          // Get landing page url
-          return tud_control_xfer(rhport, request, (void*)(uintptr_t)&desc_url, desc_url.bLength);
+  // switch (request->bmRequestType_bit.type) {
+    // case TUSB_REQ_TYPE_VENDOR:
+      // switch (request->bRequest) {
+        // case VENDOR_REQUEST_WEBUSB:
+          // // match vendor request in BOS descriptor
+          // // Get landing page url
+          // return tud_control_xfer(rhport, request, (void*)(uintptr_t)&desc_url, desc_url.bLength);
 
-        case VENDOR_REQUEST_MICROSOFT:
-          if (request->wIndex == 7) {
-            // Get Microsoft OS 2.0 compatible descriptor
-            uint16_t total_len;
-            memcpy(&total_len, desc_ms_os_20 + 8, 2);
+        // case VENDOR_REQUEST_MICROSOFT:
+          // if (request->wIndex == 7) {
+            // // Get Microsoft OS 2.0 compatible descriptor
+            // uint16_t total_len;
+            // memcpy(&total_len, desc_ms_os_20 + 8, 2);
 
-            return tud_control_xfer(rhport, request, (void*)(uintptr_t)desc_ms_os_20, total_len);
-          } else {
-            return false;
-          }
+            // return tud_control_xfer(rhport, request, (void*)(uintptr_t)desc_ms_os_20, total_len);
+          // } else {
+            // return false;
+          // }
 
-        default: break;
-      }
-      break;
+        // default: break;
+      // }
+      // break;
 
-    case TUSB_REQ_TYPE_CLASS:
-      if (request->bRequest == 0x22) {
-        // Webserial simulate the CDC_REQUEST_SET_CONTROL_LINE_STATE (0x22) to connect and disconnect.
-        web_serial_connected = (request->wValue != 0);
+    // case TUSB_REQ_TYPE_CLASS:
+      // if (request->bRequest == 0x22) {
+        // // Webserial simulate the CDC_REQUEST_SET_CONTROL_LINE_STATE (0x22) to connect and disconnect.
+        // web_serial_connected = (request->wValue != 0);
 
-        // Always lit LED if connected
-        if (web_serial_connected) {
-          board_led_write(true);
-          blink_interval_ms = BLINK_ALWAYS_ON;
+        // // Always lit LED if connected
+        // if (web_serial_connected) {
+          // board_led_write(true);
+          // blink_interval_ms = BLINK_ALWAYS_ON;
 
-          tud_vendor_write_str("\r\nWebUSB interface connected\r\n");
-          tud_vendor_write_flush();
-        } else {
-          tud_vendor_write_clear(); // anything left in the buffer is now thrown out
-          blink_interval_ms = BLINK_MOUNTED;
-        }
+          // tud_vendor_write_str("\r\nWebUSB interface connected\r\n");
+          // tud_vendor_write_flush();
+        // } else {
+          // tud_vendor_write_clear(); // anything left in the buffer is now thrown out
+          // blink_interval_ms = BLINK_MOUNTED;
+        // }
 
-        // response with status OK
-        return tud_control_status(rhport, request);
-      }
-      break;
+        // // response with status OK
+        // return tud_control_status(rhport, request);
+      // }
+      // break;
 
-    default: break;
-  }
+    // default: break;
+  // }
 
-  // stall unknown request
-  return false;
+  // // stall unknown request
+  // return false;
+// }
+
+// void tud_vendor_rx_cb(uint8_t idx, const uint8_t *buffer, uint32_t bufsize) {
+  // (void)idx;
+  // (void)buffer;
+  // (void)bufsize;
+
+  // while (tud_vendor_available()) {
+    // uint8_t        buf[64];
+    // const uint32_t count = tud_vendor_read(buf, sizeof(buf));
+    // echo_all(buf, count);
+  // }
+// }
+
+
+void tud_vendor_rx_cb(uint8_t itf, uint8_t const* buffer, uint16_t bufsize) {
+  (void) itf; 
+  (void) buffer; 
+  (void) bufsize;
+  
+  // For now, just read the data to clear the hardware buffer
+  uint8_t dummy_buf[64];
+  tud_vendor_read(dummy_buf, sizeof(dummy_buf));
 }
 
-void tud_vendor_rx_cb(uint8_t idx, const uint8_t *buffer, uint32_t bufsize) {
-  (void)idx;
-  (void)buffer;
-  (void)bufsize;
 
-  while (tud_vendor_available()) {
-    uint8_t        buf[64];
-    const uint32_t count = tud_vendor_read(buf, sizeof(buf));
-    echo_all(buf, count);
-  }
-}
 
 //--------------------------------------------------------------------+
 // USB CDC

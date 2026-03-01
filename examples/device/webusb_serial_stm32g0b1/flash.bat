@@ -1,0 +1,1 @@
+openocd -f interface/stlink.cfg -f target/stm32g0x.cfg -c "program _build/stm32g0b1aliex/webusb_serial_stm32g0b1.elf verify reset exit"

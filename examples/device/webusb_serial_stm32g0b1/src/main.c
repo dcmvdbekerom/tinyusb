@@ -117,6 +117,7 @@ static void echo_all(const uint8_t buf[], uint32_t count) {
   // echo to cdc
   if (tud_cdc_connected()) {
     tud_cdc_write(buf, count);
+    //tud_cdc_write_flush();
   }
 }
 
@@ -231,9 +232,10 @@ void tud_vendor_rx_cb(uint8_t idx, const uint8_t *buffer, uint32_t bufsize) {
 // Invoked when cdc when line state changed e.g connected/disconnected
 void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts) {
   (void)itf;
+  (void)rts;
 
   // connected
-  if (dtr && rts) {
+  if (dtr) { // && rts
     // print initial message when connected
     tud_cdc_write_str("\r\nTinyUSB WebUSB device example\r\n");
   }

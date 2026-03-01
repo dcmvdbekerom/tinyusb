@@ -1,1 +1,0 @@
-make BOARD=stm32g0b1aliex

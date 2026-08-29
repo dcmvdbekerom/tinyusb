@@ -1,0 +1,11 @@
+# STM32G431CBU6 48 pins 128kB ROM UFQFPN  32kB RAM 
+
+MCU_VARIANT = stm32g431xx
+
+CFLAGS += \
+	-DSTM32G431xx
+# Linker
+LD_FILE = $(BOARD_PATH)/STM32G431CBUx_FLASH.ld
+
+# For flash-jlink target
+JLINK_DEVICE = stm32g431cb

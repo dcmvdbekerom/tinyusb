@@ -1,26 +1,7 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2024 Ha Thach (tinyusb.org)
- * Copyright (c) 2025, HiFiPhile (Zixun LI)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-FileCopyrightText: Copyright (c) 2024 Ha Thach (tinyusb.org)
+ * SPDX-FileCopyrightText: Copyright (c) 2025, HiFiPhile (Zixun LI)
+ * SPDX-License-Identifier: MIT
  *
  * This file is part of the TinyUSB stack.
  */
@@ -38,12 +19,12 @@
 // Reset the USB Core
 void fsdev_core_reset(void) {
   // Perform USB peripheral reset
-  FSDEV_REG->CNTR = USB_CNTR_FRES | USB_CNTR_PDWN;
+  FSDEV_REG->CNTR = U_CNTR_FRES | U_CNTR_PDWN;
   for (volatile uint32_t i = 0; i < 200; i++) { // should be a few us
     asm("NOP");
   }
 
-  FSDEV_REG->CNTR &= ~USB_CNTR_PDWN;
+  FSDEV_REG->CNTR &= ~U_CNTR_PDWN;
 
   // Wait startup time, for F042 and F070, this is <= 1 us.
   for (volatile uint32_t i = 0; i < 200; i++) { // should be a few us
@@ -52,18 +33,23 @@ void fsdev_core_reset(void) {
 
   // Clear pending interrupts
   FSDEV_REG->ISTR = 0;
+
+  #if (CFG_TUSB_MCU == OPT_MCU_AT32F403A_407) || (CFG_TUSB_MCU == OPT_MCU_AT32F413)
+  // Enable larger PMA area
+  CRM->misc1_bit.usbbufs = 1;
+  #endif
 }
 
 // De-initialize the USB Core
 void fsdev_deinit(void) {
   // Disable all interrupts and force USB reset
-  FSDEV_REG->CNTR = USB_CNTR_FRES;
+  FSDEV_REG->CNTR = U_CNTR_FRES;
 
   // Clear pending interrupts
   FSDEV_REG->ISTR = 0;
 
   // Put USB peripheral in power down mode
-  FSDEV_REG->CNTR = USB_CNTR_FRES | USB_CNTR_PDWN;
+  FSDEV_REG->CNTR = U_CNTR_FRES | U_CNTR_PDWN;
   for (volatile uint32_t i = 0; i < 200; i++) { // should be a few us
     asm("NOP");
   }
@@ -81,11 +67,11 @@ uint16_t pma_align_buffer_size(uint16_t size, uint8_t* blsize, uint8_t* num_bloc
   if (size > 62) {
     block_in_bytes = 32;
     *blsize = 1;
-    *num_block = tu_div_ceil(size, 32);
+    *num_block = (uint8_t)tu_div_ceil(size, 32);
   } else {
     block_in_bytes = 2;
     *blsize = 0;
-    *num_block = tu_div_ceil(size, 2);
+    *num_block = (uint8_t)tu_div_ceil(size, 2);
   }
 
   return (*num_block) * block_in_bytes;
@@ -104,7 +90,7 @@ void btable_set_rx_bufsize(uint32_t ep_id, uint8_t buf_id, uint16_t wCount) {
     bl_nb = 1 << 15;
   }
 
-#ifdef FSDEV_BUS_32BIT
+#ifdef  CFG_TUSB_FSDEV_32BIT
   uint32_t count_addr = FSDEV_BTABLE->ep32[ep_id][buf_id].count_addr;
   count_addr = (bl_nb << 16) | (count_addr & 0x0000FFFFu);
   FSDEV_BTABLE->ep32[ep_id][buf_id].count_addr = count_addr;

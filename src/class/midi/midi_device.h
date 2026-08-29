@@ -1,25 +1,6 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2019 Ha Thach (tinyusb.org)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-FileCopyrightText: Copyright (c) 2019 Ha Thach (tinyusb.org)
+ * SPDX-License-Identifier: MIT
  *
  * This file is part of the TinyUSB stack.
  */
@@ -34,13 +15,20 @@
 // Class Driver Configuration
 //--------------------------------------------------------------------+
 
-#if !defined(CFG_TUD_MIDI_EP_BUFSIZE) && defined(CFG_TUD_MIDI_EPSIZE)
-  #warning CFG_TUD_MIDI_EPSIZE is renamed to CFG_TUD_MIDI_EP_BUFSIZE, please update to use the new name
-  #define CFG_TUD_MIDI_EP_BUFSIZE CFG_TUD_MIDI_EPSIZE
+#ifndef CFG_TUD_MIDI_RX_EPSIZE
+  #ifdef CFG_TUD_MIDI_EP_BUFSIZE
+    #define CFG_TUD_MIDI_RX_EPSIZE CFG_TUD_MIDI_EP_BUFSIZE
+  #else
+    #define CFG_TUD_MIDI_RX_EPSIZE TUD_EPSIZE_BULK_MAX
+  #endif
 #endif
 
-#ifndef CFG_TUD_MIDI_EP_BUFSIZE
-  #define CFG_TUD_MIDI_EP_BUFSIZE (TUD_OPT_HIGH_SPEED ? 512 : 64)
+#ifndef CFG_TUD_MIDI_TX_EPSIZE
+  #ifdef CFG_TUD_MIDI_EP_BUFSIZE
+    #define CFG_TUD_MIDI_TX_EPSIZE CFG_TUD_MIDI_EP_BUFSIZE
+  #else
+    #define CFG_TUD_MIDI_TX_EPSIZE TUD_EPSIZE_BULK_MAX
+  #endif
 #endif
 
 #ifdef __cplusplus
@@ -65,6 +53,13 @@ uint32_t tud_midi_n_available(uint8_t itf, uint8_t cable_num);
 
 // Read byte stream (legacy)
 uint32_t tud_midi_n_stream_read(uint8_t itf, uint8_t cable_num, void *buffer, uint32_t bufsize);
+
+// Read byte stream with cable demultiplexing: returns the cable number of the
+// data that was read.  Reads from a single cable per call; stops when the next
+// packet belongs to a different cable so the caller can dispatch per-cable.
+// Note: shares internal state with tud_midi_n_stream_read(); do not mix both
+// on the same interface.
+uint32_t tud_midi_n_demux_stream_read(uint8_t itf, uint8_t *p_cable_num, void *buffer, uint32_t bufsize);
 
 // Write byte Stream (legacy)
 uint32_t tud_midi_n_stream_write(uint8_t itf, uint8_t cable_num, const uint8_t *buffer, uint32_t bufsize);
@@ -94,6 +89,11 @@ TU_ATTR_ALWAYS_INLINE static inline uint32_t tud_midi_available(void) {
 
 TU_ATTR_ALWAYS_INLINE static inline uint32_t tud_midi_stream_read(void *buffer, uint32_t bufsize) {
   return tud_midi_n_stream_read(0, 0, buffer, bufsize);
+}
+
+TU_ATTR_ALWAYS_INLINE static inline uint32_t
+tud_midi_demux_stream_read(uint8_t *p_cable_num, void *buffer, uint32_t bufsize) {
+  return tud_midi_n_demux_stream_read(0, p_cable_num, buffer, bufsize);
 }
 
 TU_ATTR_ALWAYS_INLINE static inline uint32_t

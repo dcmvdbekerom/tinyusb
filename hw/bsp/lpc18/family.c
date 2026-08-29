@@ -69,6 +69,7 @@ void SystemInit(void) {
 #ifdef TRACE_ETM
   // Trace clock is limited to 60MHz, limit CPU clock to 120MHz
   Chip_SetupCoreClock(CLKIN_CRYSTAL, 120000000UL, true);
+  board_trace_pinmux(); // after clock setup so TRACECLK starts at its final frequency
 #else
   // CPU clock max to 180 Mhz
   Chip_SetupCoreClock(CLKIN_CRYSTAL, MAX_CLOCK_FREQ, true);
@@ -128,12 +129,16 @@ int board_uart_read(uint8_t *buf, int len) {
 
 int board_uart_write(void const *buf, int len) {
   uint8_t const *buf8 = (uint8_t const *) buf;
-  for (int i = 0; i < len; i++) {
-    while ((Chip_UART_ReadLineStatus(UART_DEV) & UART_LSR_THRE) == 0) {}
-    Chip_UART_SendByte(UART_DEV, buf8[i]);
+  int count = 0;
+  while (count < len) {
+    if (Chip_UART_ReadLineStatus(UART_DEV) & UART_LSR_THRE) {
+      Chip_UART_SendByte(UART_DEV, buf8[count]);
+      count++;
+    } else {
+      break;
+    }
   }
-
-  return len;
+  return count;
 }
 
 #if CFG_TUSB_OS == OPT_OS_NONE
@@ -143,7 +148,7 @@ void SysTick_Handler(void) {
   system_ticks++;
 }
 
-uint32_t board_millis(void) {
+uint32_t tusb_time_millis_api(void) {
   return system_ticks;
 }
 

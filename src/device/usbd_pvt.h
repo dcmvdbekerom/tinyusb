@@ -1,25 +1,6 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2019 Ha Thach (tinyusb.org)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-FileCopyrightText: Copyright (c) 2019 Ha Thach (tinyusb.org)
+ * SPDX-License-Identifier: MIT
  *
  * This file is part of the TinyUSB stack.
  */
@@ -71,6 +52,8 @@ typedef bool (*usbd_control_xfer_cb_t)(uint8_t rhport, uint8_t stage, tusb_contr
 void usbd_int_set(bool enabled);
 void usbd_spin_lock(bool in_isr);
 void usbd_spin_unlock(bool in_isr);
+
+uint8_t* usbd_get_ctrl_buf(void);
 
 //--------------------------------------------------------------------+
 // USBD Endpoint API
@@ -127,10 +110,6 @@ void usbd_sof_enable(uint8_t rhport, sof_consumer_t consumer, bool en);
 
 bool usbd_open_edpt_pair(uint8_t rhport, uint8_t const* p_desc, uint8_t ep_count, uint8_t xfer_type, uint8_t* ep_out, uint8_t* ep_in);
 void usbd_defer_func(osal_task_func_t func, void *param, bool in_isr);
-
-#if CFG_TUSB_DEBUG >= CFG_TUD_LOG_LEVEL
-void usbd_driver_print_control_complete_name(usbd_control_xfer_cb_t callback);
-#endif
 
 #ifdef __cplusplus
  }

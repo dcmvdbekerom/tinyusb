@@ -37,7 +37,7 @@ else
   CFLAGS += -DCFG_TUD_WCH_USBIP_USBFS=1
 endif
 
-LDFLAGS_GCC += \
+LDFLAGS += \
 	-nostdlib -nostartfiles \
 	--specs=nosys.specs --specs=nano.specs \
 
@@ -63,6 +63,6 @@ INC += \
 
 FREERTOS_PORTABLE_SRC = $(FREERTOS_PORTABLE_PATH)/RISC-V
 
-OPENOCD_WCH_OPTION=-f $(TOP)/$(FAMILY_PATH)/wch-riscv.cfg
+OPENOCD_OPTION=-f $(TOP)/$(FAMILY_PATH)/wch-riscv.cfg
 flash: flash-wlink-rs
 #flash: flash-openocd-wch

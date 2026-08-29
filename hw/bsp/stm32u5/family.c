@@ -48,6 +48,22 @@ TU_ATTR_UNUSED static void Error_Handler(void) {
 
 #include "board.h"
 
+#ifdef UART_ID
+  #if UART_ID == 1
+    #define USARTn            USART1
+    #define UARTn_CLK_ENABLE  __HAL_RCC_USART1_CLK_ENABLE
+  #elif UART_ID == 2
+    #define USARTn            USART2
+    #define UARTn_CLK_ENABLE  __HAL_RCC_USART2_CLK_ENABLE
+  #elif UART_ID == 3
+    #define USARTn            USART3
+    #define UARTn_CLK_ENABLE  __HAL_RCC_USART3_CLK_ENABLE
+  #elif UART_ID == 11
+    #define USARTn            LPUART1
+    #define UARTn_CLK_ENABLE  __HAL_RCC_LPUART1_CLK_ENABLE
+  #endif
+#endif
+
 //--------------------------------------------------------------------+
 // Forward USB interrupt events to TinyUSB IRQ Handler
 //--------------------------------------------------------------------+
@@ -66,11 +82,18 @@ void OTG_HS_IRQHandler(void) {
   tusb_int_handler(0, true);
 }
 #endif
+
+// USB PD
+void UCPD1_IRQHandler(void) {
+  tuc_int_handler(0);
+}
 //--------------------------------------------------------------------+
 // MACRO TYPEDEF CONSTANT ENUM
 //--------------------------------------------------------------------+
 
+#ifdef UART_ID
 UART_HandleTypeDef UartHandle;
+#endif
 
 void board_init(void) {
   // Init clock, implemented in board.h
@@ -88,8 +111,6 @@ void board_init(void) {
 #endif
   __HAL_RCC_GPIOG_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
-
-  UART_CLK_EN();
 
   /* Enable Instruction cache */
   HAL_ICACHE_Enable();
@@ -119,6 +140,7 @@ void board_init(void) {
   // IOSV bit MUST be set to access GPIO port G[2:15] */
   HAL_PWREx_EnableVddIO2();
 
+#ifdef UART_ID
   // Uart
   GPIO_InitStruct.Pin = UART_TX_PIN | UART_RX_PIN;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -127,7 +149,8 @@ void board_init(void) {
   GPIO_InitStruct.Alternate = UART_GPIO_AF;
   HAL_GPIO_Init(UART_GPIO_PORT, &GPIO_InitStruct);
 
-  UartHandle.Instance = UART_DEV;
+  UARTn_CLK_ENABLE();
+  UartHandle.Instance = USARTn;
   UartHandle.Init.BaudRate = CFG_BOARD_UART_BAUDRATE;
   UartHandle.Init.WordLength = UART_WORDLENGTH_8B;
   UartHandle.Init.StopBits = UART_STOPBITS_1;
@@ -139,6 +162,8 @@ void board_init(void) {
   UartHandle.Init.ClockPrescaler = UART_PRESCALER_DIV1;
   UartHandle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
   HAL_UART_Init(&UartHandle);
+  HAL_UARTEx_EnableFifoMode(&UartHandle);
+#endif
 
   /* Configure USB GPIOs */
   /* Configure DM DP Pins */
@@ -223,6 +248,29 @@ void board_init(void) {
 
   /* Non-standard VBus sense settings */
   board_vbus_sense_init();
+
+#if CFG_TUC_ENABLED
+  // USB PD
+  // Default CC1/CC2 is PA15/PB15
+
+  // Enable pwr for disabling dead battery feature in Power's CR3
+  __HAL_RCC_PWR_CLK_ENABLE();
+  __HAL_RCC_CRC_CLK_ENABLE();
+  __HAL_RCC_UCPD_CLK_ENABLE();
+
+  // Enable DMA for USB PD
+  __HAL_RCC_GPDMA1_CLK_ENABLE();
+
+  #ifdef UCPD_DBn_PIN
+  // Configure DBn pin
+  GPIO_InitStruct.Pin = UCPD_DBn_PIN;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(UCPD_DBn_PORT, &GPIO_InitStruct);
+  HAL_GPIO_WritePin(UCPD_DBn_PORT, UCPD_DBn_PIN, GPIO_PIN_SET);
+  #endif
+
+#endif
 }
 
 //--------------------------------------------------------------------+
@@ -252,14 +300,40 @@ size_t board_get_unique_id(uint8_t id[], size_t max_len) {
 }
 
 int board_uart_read(uint8_t *buf, int len) {
-  (void) buf;
-  (void) len;
+#ifdef UART_ID
+  int count = 0;
+  while (count < len) {
+    if (__HAL_UART_GET_FLAG(&UartHandle, UART_FLAG_RXNE)) {
+      buf[count] = (uint8_t) UartHandle.Instance->RDR;
+      count++;
+    } else {
+      break;
+    }
+  }
+  return count;
+#else
+  (void) buf; (void) len;
   return 0;
+#endif
 }
 
 int board_uart_write(void const *buf, int len) {
-  HAL_UART_Transmit(&UartHandle, (uint8_t *) (uintptr_t) buf, len, 0xffff);
-  return len;
+#ifdef UART_ID
+  const uint8_t *p = (const uint8_t *) buf;
+  int count = 0;
+  while (count < len) {
+    if (__HAL_UART_GET_FLAG(&UartHandle, UART_FLAG_TXE)) {
+      UartHandle.Instance->TDR = p[count];
+      count++;
+    } else {
+      break;
+    }
+  }
+  return count;
+#else
+  (void) buf; (void) len;
+  return -1;
+#endif
 }
 
 #if CFG_TUSB_OS == OPT_OS_NONE
@@ -270,7 +344,7 @@ void SysTick_Handler(void) {
   system_ticks++;
 }
 
-uint32_t board_millis(void) {
+uint32_t tusb_time_millis_api(void) {
   return system_ticks;
 }
 

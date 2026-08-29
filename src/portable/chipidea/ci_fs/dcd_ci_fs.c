@@ -1,25 +1,7 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2020 Koji Kitayama
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-FileCopyrightText: Copyright (c) 2020 Koji Kitayama
+ * SPDX-FileCopyrightText: Copyright (c) 2020 Ha Thach (tinyusb.org)
+ * SPDX-License-Identifier: MIT
  *
  * This file is part of the TinyUSB stack.
  */
@@ -42,43 +24,7 @@
 //--------------------------------------------------------------------+
 // MACRO TYPEDEF CONSTANT ENUM DECLARATION
 //--------------------------------------------------------------------+
-
-enum {
-  TOK_PID_OUT   = 0x1u,
-  TOK_PID_IN    = 0x9u,
-  TOK_PID_SETUP = 0xDu,
-};
-
-typedef struct TU_ATTR_PACKED
-{
-  union {
-    uint32_t head;
-    struct {
-      union {
-        struct {
-               uint16_t           :  2;
-          __IO uint16_t tok_pid   :  4;
-               uint16_t data      :  1;
-          __IO uint16_t own       :  1;
-               uint16_t           :  8;
-        };
-        struct {
-               uint16_t           :  2;
-               uint16_t bdt_stall :  1;
-               uint16_t dts       :  1;
-               uint16_t ninc      :  1;
-               uint16_t keep      :  1;
-               uint16_t           : 10;
-        };
-      };
-      __IO uint16_t bc : 10;
-           uint16_t    :  6;
-    };
-  };
-  uint8_t *addr;
-}buffer_descriptor_t;
-
-TU_VERIFY_STATIC( sizeof(buffer_descriptor_t) == 8, "size is not correct" );
+// TOK_PID_* and buffer_descriptor_t are shared with the host driver in ci_fs_type.h
 
 typedef struct TU_ATTR_PACKED
 {
@@ -193,6 +139,17 @@ static void process_tokdne(uint8_t rhport)
     return;
   }
   const unsigned length = ep->length;
+
+  /* Transfer is complete. For OUT, a multi-packet transfer speculatively arms the
+   * sibling (even/odd) BDT to avoid NAK. When the transfer ends early - e.g. the host
+   * sends a short packet before filling both buffers - that sibling is left armed
+   * (own=1). A leftover armed BDT desyncs the even/odd ping-pong so the next OUT
+   * packet lands in the wrong buffer half (buffer + max_packet_size instead of
+   * buffer), making the stack read stale data. Disarm it here. */
+  if (dir == TUSB_DIR_OUT) {
+    _dcd.bdt[epnum][dir][odd ^ 1].own = 0;
+  }
+
   dcd_event_xfer_complete(rhport,
                           tu_edpt_addr(epnum, dir),
                           length - remaining, XFER_RESULT_SUCCESS, true);
@@ -360,7 +317,7 @@ static bool edpt_open(uint8_t rhport, uint8_t ep_addr, uint16_t max_packet_size,
   unsigned val = USB_ENDPT_EPCTLDIS_MASK;
   val |= (xfer != TUSB_XFER_ISOCHRONOUS) ? USB_ENDPT_EPHSHK_MASK : 0;
   val |= dir ? USB_ENDPT_EPTXEN_MASK : USB_ENDPT_EPRXEN_MASK;
-  CI_REG->EP[epn].CTL |= val;
+  CI_REG->EP[epn].CTL |= (uint8_t)val;
 
   if (xfer != TUSB_XFER_ISOCHRONOUS) {
     bd[odd].dts      = 1;
@@ -434,11 +391,11 @@ bool dcd_edpt_xfer(uint8_t rhport, uint8_t ep_addr, uint8_t * buffer, uint16_t t
     buffer_descriptor_t *next = ep->odd ? bd - 1: bd + 1;
     /* When total_bytes is greater than the max packet size,
      * it prepares to the next transfer to avoid NAK in advance. */
-    next->bc   = total_bytes >= 2 * mps ? mps: total_bytes - mps;
+    next->bc   = (total_bytes >= 2 * mps) ? mps : (total_bytes - mps);
     next->addr = buffer + mps;
     next->own  = 1;
   }
-  bd->bc   = total_bytes >= mps ? mps: total_bytes;
+  bd->bc   = (total_bytes >= mps ? mps : total_bytes);
   bd->addr = buffer;
   __DSB();
   bd->own  = 1; /* This bit must be set last */
@@ -506,16 +463,16 @@ void dcd_edpt_clear_stall(uint8_t rhport, uint8_t ep_addr)
 //--------------------------------------------------------------------+
 void dcd_int_handler(uint8_t rhport)
 {
-  uint32_t is  = CI_REG->INT_STAT;
-  uint32_t msk = CI_REG->INT_EN;
+  uint8_t is  = CI_REG->INT_STAT;
+  uint8_t msk = CI_REG->INT_EN;
 
   // clear non-enabled interrupts
-  CI_REG->INT_STAT = is & ~msk;
+  CI_REG->INT_STAT = (uint8_t)(is & ~msk);
   is &= msk;
 
   if (is & USB_ISTAT_ERROR_MASK) {
     /* TODO: */
-    uint32_t es = CI_REG->ERR_STAT;
+    uint8_t es = CI_REG->ERR_STAT;
     CI_REG->ERR_STAT = es;
     CI_REG->INT_STAT = is; /* discard any pending events */
   }

@@ -39,7 +39,7 @@
  * is done automatically by firmware.
  *
  * - On Linux/macOS, udev permission may need to be updated by
- *   - copying '/examples/device/99-tinyusb.rules' file to /etc/udev/rules.d/ then
+ *   - copying 'examples/device/99-tinyusb-examples.rules' file to /etc/udev/rules.d/ then
  *   - run 'sudo udevadm control --reload-rules && sudo udevadm trigger'
  */
 
@@ -257,7 +257,7 @@ void led_blinking_task(void) {
   static bool led_state = false;
 
   // Blink every interval ms
-  if (board_millis() - start_ms < blink_interval_ms) {
+  if (tusb_time_millis_api() - start_ms < blink_interval_ms) {
     return; // not enough time
   }
   start_ms += blink_interval_ms;

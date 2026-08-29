@@ -43,14 +43,16 @@ extern "C" {
 #define OTG_FS_VBUS_SENSE     1
 #define OTG_HS_VBUS_SENSE     0
 
-#define PINID_LED          0
-#define PINID_BUTTON       1
-#define PINID_UART_TX      2
-#define PINID_UART_RX      3
-#define PINID_TCPP0203_EN  4
-#define PINID_I2C_SCL      5
-#define PINID_I2C_SDA      6
-#define PINID_TCPP0203_INT 7
+#define UART_ID               1
+
+#define PINID_LED             0
+#define PINID_BUTTON          1
+#define PINID_UART_TX         2
+#define PINID_UART_RX         3
+#define PINID_TCPP0203_EN     4
+#define PINID_I2C_SCL         5
+#define PINID_I2C_SDA         6
+#define PINID_TCPP0203_INT    7
 
 static board_pindef_t board_pindef[] = {
   { // LED
@@ -204,6 +206,10 @@ int32_t i2c_writereg(uint16_t DevAddr, uint16_t Reg, uint8_t *pData, uint16_t Le
   return 0;
 }
 
+static int32_t i2c_get_tick(void) {
+  return (int32_t) HAL_GetTick();
+}
+
 static inline void board_init2(void) {
   TCPP0203_IO_t            io_ctx;
 
@@ -212,6 +218,7 @@ static inline void board_init2(void) {
   io_ctx.DeInit      = board_tcpp0203_deinit;
   io_ctx.ReadReg     = i2c_readreg;
   io_ctx.WriteReg    = i2c_writereg;
+  io_ctx.GetTick     = i2c_get_tick;
 
   TU_ASSERT(TCPP0203_RegisterBusIO(&tcpp0203_obj, &io_ctx) == TCPP0203_OK, );
 

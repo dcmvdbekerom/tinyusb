@@ -199,16 +199,25 @@ uint32_t board_button_read(void) {
 int board_uart_read(uint8_t* buf, int len) {
   (void) buf;
   (void) len;
-  return 0;
+  return -1;
 }
 
 int board_uart_write(void const* buf, int len) {
 #ifdef UART_DEV
-  LPUART_WriteBlocking(UART_DEV, (uint8_t const*) buf, len);
-  return len;
+  const uint8_t *p = (const uint8_t *) buf;
+  int count = 0;
+  while (count < len) {
+    if (UART_DEV->STAT & LPUART_STAT_TDRE_MASK) {
+      UART_DEV->DATA = p[count];
+      count++;
+    } else {
+      break;
+    }
+  }
+  return count;
 #else
   (void) buf; (void) len;
-  return 0;
+  return -1;
 #endif
 }
 
@@ -219,7 +228,7 @@ void SysTick_Handler(void) {
   system_ticks++;
 }
 
-uint32_t board_millis(void) {
+uint32_t tusb_time_millis_api(void) {
   return system_ticks;
 }
 

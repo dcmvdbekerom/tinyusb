@@ -58,13 +58,26 @@ typedef struct {
 
 #include "board.h"
 
+#ifdef UART_ID
+  #if UART_ID == 1
+    #define USARTn            USART1
+    #define UARTn_CLK_ENABLE  __HAL_RCC_USART1_CLK_ENABLE
+  #elif UART_ID == 2
+    #define USARTn            USART2
+    #define UARTn_CLK_ENABLE  __HAL_RCC_USART2_CLK_ENABLE
+  #elif UART_ID == 3
+    #define USARTn            USART3
+    #define UARTn_CLK_ENABLE  __HAL_RCC_USART3_CLK_ENABLE
+  #endif
+#endif
+
 //--------------------------------------------------------------------+
 // MACRO TYPEDEF CONSTANT ENUM
 //--------------------------------------------------------------------+
 
-#ifdef UART_DEV
+#ifdef UART_ID
 static UART_HandleTypeDef UartHandle = {
-  .Instance = UART_DEV,
+  .Instance = USARTn,
   .Init = {
     .BaudRate = CFG_BOARD_UART_BAUDRATE,
     .WordLength = UART_WORDLENGTH_8B,
@@ -96,6 +109,27 @@ void USB2_OTG_HS_IRQHandler(void) {
 void USB1_OTG_HS_IRQHandler(void) {
   tusb_int_handler(0, true);
 }
+
+#ifdef TRACE_ETM
+static void trace_etm_init(void) {
+  // Nucleo-N657X0-Q routes 4-bit trace to the CN1 MIPI20 natively:
+  // TRACE_CLK = PB3, D0 = PE3, D1 = PB0, D2 = PB6, D3 = PB7 (MB1940 Table 5)
+  GPIO_InitTypeDef gpio_init;
+  gpio_init.Mode      = GPIO_MODE_AF_PP;
+  gpio_init.Pull      = GPIO_NOPULL;
+  gpio_init.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
+  gpio_init.Alternate = GPIO_AF0_TRACE;
+  gpio_init.Pin = GPIO_PIN_0 | GPIO_PIN_3 | GPIO_PIN_6 | GPIO_PIN_7;
+  HAL_GPIO_Init(GPIOB, &gpio_init);
+  gpio_init.Pin = GPIO_PIN_3;
+  HAL_GPIO_Init(GPIOE, &gpio_init);
+
+  // trace clock (ck_cpu_tpiu) is a fixed cpu/8 - just enable it
+  DBGMCU->CR |= DBGMCU_CR_DBGCLKEN | DBGMCU_CR_TRACECLKEN;
+}
+#else
+  #define trace_etm_init()
+#endif
 
 void board_init(void) {
   /* Enable BusFault and SecureFault handlers (HardFault is default) */
@@ -135,6 +169,7 @@ void board_init(void) {
   for (uint8_t i = 0; i < TU_ARRAY_SIZE(board_pindef); i++) {
     HAL_GPIO_Init(board_pindef[i].port, &board_pindef[i].pin_init);
   }
+  trace_etm_init();
 
   NVIC_SetPriority(UCPD1_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),5, 0));
   NVIC_EnableIRQ(UCPD1_IRQn);
@@ -154,9 +189,10 @@ void board_init(void) {
 
 
 
-#ifdef UART_DEV
-  UART_CLK_EN();
+#ifdef UART_ID
+  UARTn_CLK_ENABLE();
   HAL_UART_Init(&UartHandle);
+  HAL_UARTEx_EnableFifoMode(&UartHandle);
 #endif
 
 #if (CFG_TUD_ENABLED && BOARD_TUD_RHPORT == 0) || (CFG_TUH_ENABLED && BOARD_TUH_RHPORT == 0)
@@ -342,16 +378,36 @@ size_t board_get_unique_id(uint8_t id[], size_t max_len) {
 }
 
 int board_uart_read(uint8_t *buf, int len) {
-  (void) buf;
-  (void) len;
+#ifdef UART_ID
+  int count = 0;
+  while (count < len) {
+    if (__HAL_UART_GET_FLAG(&UartHandle, UART_FLAG_RXNE)) {
+      buf[count] = (uint8_t) UartHandle.Instance->RDR;
+      count++;
+    } else {
+      break;
+    }
+  }
+  return count;
+#else
+  (void) buf; (void) len;
   return 0;
+#endif
 }
 
 int board_uart_write(void const *buf, int len) {
-#ifdef UART_DEV
-  HAL_UART_Transmit(&UartHandle, (uint8_t * )(uintptr_t)
-  buf, len, 0xffff);
-  return len;
+#ifdef UART_ID
+  const uint8_t *p = (const uint8_t *) buf;
+  int count = 0;
+  while (count < len) {
+    if (__HAL_UART_GET_FLAG(&UartHandle, UART_FLAG_TXE)) {
+      UartHandle.Instance->TDR = p[count];
+      count++;
+    } else {
+      break;
+    }
+  }
+  return count;
 #else
   (void) buf; (void) len;
   return -1;
@@ -366,7 +422,7 @@ void SysTick_Handler(void) {
   system_ticks++;
 }
 
-uint32_t board_millis(void) {
+uint32_t tusb_time_millis_api(void) {
   return system_ticks;
 }
 

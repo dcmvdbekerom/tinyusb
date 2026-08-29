@@ -1,25 +1,7 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2025 Ennebi Elettronica (https://ennebielettronica.com)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-FileCopyrightText: Copyright (c) 2025 Ennebi Elettronica (https://ennebielettronica.com)
+ * SPDX-FileCopyrightText: Copyright (c) 2025 Ha Thach (tinyusb.org)
+ * SPDX-License-Identifier: MIT
  *
  * This file is part of the TinyUSB stack.
  */
@@ -321,7 +303,7 @@ bool mtpd_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_request_t 
     .session_id = p_mtp->session_id,
     .request = request,
     .buf = p_mtp->control_buf,
-    .bufsize = tu_le16toh(request->wLength),
+    .bufsize = request->wLength,
   };
 
   switch (request->bRequest) {
@@ -441,15 +423,25 @@ bool mtpd_xfer_cb(uint8_t rhport, uint8_t ep_addr, xfer_result_t event, uint32_t
         threshold = CFG_TUD_MTP_EP_BUFSIZE;
       }
 
-      // Check completion: ZLP, short packet, or total length reached
-      const bool is_complete =
-        (xferred_bytes == 0 || xferred_bytes < threshold || p_mtp->xferred_len >= p_mtp->total_len);
+      // Check completion for IN and OUT separately
+      bool is_complete;
+      if (is_data_in) {
+        // IN completion: short packet, ZLP, or reaching total_len
+        is_complete = (xferred_bytes == 0 || xferred_bytes < threshold || p_mtp->xferred_len >= p_mtp->total_len);
+      } else {
+        // OUT completion: reaching total_len or ZLP only. A short packet does NOT end the phase
+        // (an early short packet before total_len is the cancel case, not normal completion).
+        is_complete = (p_mtp->xferred_len >= p_mtp->total_len) || ((xferred_bytes == 0 && p_mtp->xferred_len > 0));
+      }
 
       TU_LOG_DRV("  MTP Data %s CB: xferred_bytes=%lu, xferred_len/total_len=%lu/%lu, is_complete=%d\r\n",
                  is_data_in ? "IN" : "OUT", xferred_bytes, p_mtp->xferred_len, p_mtp->total_len, is_complete ? 1 : 0);
 
-      // Send/queue ZLP if packet is full-sized but transfer is complete
-      if (is_complete && xferred_bytes > 0 && !(xferred_bytes & (threshold - 1))) {
+      // Send/queue ZLP if packet is full-sized but transfer is complete.
+      // OUT must deliver this final payload to the application before receiving
+      // its terminating ZLP below.
+      const bool need_zlp = is_complete && xferred_bytes > 0 && !(xferred_bytes & (threshold - 1));
+      if (is_data_in && need_zlp) {
         TU_LOG_DRV("  queue ZLP\r\n");
         TU_VERIFY(usbd_edpt_claim(p_mtp->rhport, ep_addr));
         TU_ASSERT(usbd_edpt_xfer(p_mtp->rhport, ep_addr, NULL, 0, false));
@@ -477,9 +469,16 @@ bool mtpd_xfer_cb(uint8_t rhport, uint8_t ep_addr, xfer_result_t event, uint32_t
           cb_data.io_container = headerless_packet;
           cb_data.io_container.payload_bytes = xferred_bytes;
         }
-        tud_mtp_data_xfer_cb(&cb_data);
+        if (xferred_bytes > 0) {
+          tud_mtp_data_xfer_cb(&cb_data);
+        }
 
-        if (is_complete) {
+        if (need_zlp) {
+          TU_LOG_DRV("  queue ZLP\r\n");
+          TU_VERIFY(usbd_edpt_claim(p_mtp->rhport, ep_addr));
+          TU_ASSERT(usbd_edpt_xfer(p_mtp->rhport, ep_addr, NULL, 0, false));
+          return true;
+        } else if (is_complete) {
           // back to header + payload for response
           cb_data.io_container = headered_packet;
           cb_data.io_container.header->len = sizeof(mtp_container_header_t);

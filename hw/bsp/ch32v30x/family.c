@@ -29,6 +29,7 @@
 */
 
 #include "stdio.h"
+#include <string.h>
 
 // https://github.com/openwch/ch32v307/pull/90
 // https://github.com/openwch/ch32v20x/pull/12
@@ -144,7 +145,7 @@ __attribute__((interrupt)) void SysTick_Handler(void) {
   system_ticks++;
 }
 
-uint32_t board_millis(void) {
+uint32_t tusb_time_millis_api(void) {
   return system_ticks;
 }
 
@@ -166,6 +167,14 @@ uint32_t board_button_read(void) {
 #endif
 }
 
+size_t board_get_unique_id(uint8_t id[], size_t max_len) {
+  volatile uint32_t* ch32_uuid = ((volatile uint32_t*) 0x1FFFF7E8UL); // ESIG unique ID
+  uint32_t uid[3] = { ch32_uuid[0], ch32_uuid[1], ch32_uuid[2] };
+  const size_t len = max_len < sizeof(uid) ? max_len : sizeof(uid);
+  memcpy(id, uid, len); // byte copy: id[] need not be 4-byte aligned
+  return len;
+}
+
 int board_uart_read(uint8_t* buf, int len) {
   (void) buf;
   (void) len;
@@ -173,12 +182,10 @@ int board_uart_read(uint8_t* buf, int len) {
 }
 
 int board_uart_write(void const* buf, int len) {
-  int txsize = len;
-  const char* bufc = (const char*) buf;
-  while (txsize--) {
-    uart_write(*bufc++);
+  uint8_t const *p = (uint8_t const *) buf;
+  for (int i = 0; i < len; i++) {
+    uart_write(p[i]);
   }
-  uart_sync();
   return len;
 }
 

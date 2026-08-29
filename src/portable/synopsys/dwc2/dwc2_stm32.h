@@ -1,25 +1,6 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2021, Ha Thach (tinyusb.org)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-FileCopyrightText: Copyright (c) 2021, Ha Thach (tinyusb.org)
+ * SPDX-License-Identifier: MIT
  *
  * This file is part of the TinyUSB stack.
  */
@@ -31,36 +12,36 @@
 extern "C" {
 #endif
 
-// EP_MAX       : Max number of bi-directional endpoints including EP0
-// EP_FIFO_SIZE : Size of dedicated USB SRAM
+// EP_MAX          : Max number of bi-directional endpoints including EP0
+// DFIFO_DEPTH_FS/HS : DFIFO depth in 32-bit words (OTG_DFIFO_DEPTH)
 #if CFG_TUSB_MCU == OPT_MCU_STM32F1
   #include "stm32f1xx.h"
   #define EP_MAX_FS       4
-  #define EP_FIFO_SIZE_FS 1280
+  #define DFIFO_DEPTH_FS 320
 
 #elif CFG_TUSB_MCU == OPT_MCU_STM32F2
   #include "stm32f2xx.h"
   #define EP_MAX_FS       USB_OTG_FS_MAX_IN_ENDPOINTS
-  #define EP_FIFO_SIZE_FS USB_OTG_FS_TOTAL_FIFO_SIZE
+  #define DFIFO_DEPTH_FS  320
 
   #define EP_MAX_HS       USB_OTG_HS_MAX_IN_ENDPOINTS
-  #define EP_FIFO_SIZE_HS USB_OTG_HS_TOTAL_FIFO_SIZE
+  #define DFIFO_DEPTH_HS  1024
 
 #elif CFG_TUSB_MCU == OPT_MCU_STM32F4
   #include "stm32f4xx.h"
   #define EP_MAX_FS       USB_OTG_FS_MAX_IN_ENDPOINTS
-  #define EP_FIFO_SIZE_FS USB_OTG_FS_TOTAL_FIFO_SIZE
+  #define DFIFO_DEPTH_FS  320
 
   #define EP_MAX_HS       USB_OTG_HS_MAX_IN_ENDPOINTS
-  #define EP_FIFO_SIZE_HS USB_OTG_HS_TOTAL_FIFO_SIZE
+  #define DFIFO_DEPTH_HS  1024
 
 #elif CFG_TUSB_MCU == OPT_MCU_STM32H7
   #include "stm32h7xx.h"
   #define EP_MAX_FS       9
-  #define EP_FIFO_SIZE_FS 4096
+  #define DFIFO_DEPTH_FS 1024
 
   #define EP_MAX_HS       9
-  #define EP_FIFO_SIZE_HS 4096
+  #define DFIFO_DEPTH_HS 1024
 
   // NOTE: H7 with only 1 USB port: H72x / H73x / H7Ax / H7Bx
   // USB_OTG_FS_PERIPH_BASE and OTG_FS_IRQn not defined
@@ -72,18 +53,18 @@ extern "C" {
 #elif CFG_TUSB_MCU == OPT_MCU_STM32H7RS
   #include "stm32h7rsxx.h"
   #define EP_MAX_FS       6
-  #define EP_FIFO_SIZE_FS 1280
+  #define DFIFO_DEPTH_FS 320
 
   #define EP_MAX_HS       9
-  #define EP_FIFO_SIZE_HS 4096
+  #define DFIFO_DEPTH_HS 1024
 
 #elif CFG_TUSB_MCU == OPT_MCU_STM32N6
   #include "stm32n6xx.h"
   #define EP_MAX_FS       9
-  #define EP_FIFO_SIZE_FS 4096
+  #define DFIFO_DEPTH_FS 1024
 
   #define EP_MAX_HS       9
-  #define EP_FIFO_SIZE_HS 4096
+  #define DFIFO_DEPTH_HS 1024
 
   #define USB_OTG_FS_PERIPH_BASE    USB1_OTG_HS_BASE
   #define OTG_FS_IRQn               USB1_OTG_HS_IRQn
@@ -94,15 +75,15 @@ extern "C" {
 #elif CFG_TUSB_MCU == OPT_MCU_STM32F7
   #include "stm32f7xx.h"
   #define EP_MAX_FS       6
-  #define EP_FIFO_SIZE_FS 1280
+  #define DFIFO_DEPTH_FS 320
 
   #define EP_MAX_HS       9
-  #define EP_FIFO_SIZE_HS 4096
+  #define DFIFO_DEPTH_HS 1024
 
 #elif CFG_TUSB_MCU == OPT_MCU_STM32L4
   #include "stm32l4xx.h"
   #define EP_MAX_FS       6
-  #define EP_FIFO_SIZE_FS 1280
+  #define DFIFO_DEPTH_FS 320
 
 #elif CFG_TUSB_MCU == OPT_MCU_STM32U5
   #include "stm32u5xx.h"
@@ -110,11 +91,11 @@ extern "C" {
   #ifdef USB_OTG_FS
     #define USB_OTG_FS_PERIPH_BASE    USB_OTG_FS_BASE
     #define EP_MAX_FS                 6
-    #define EP_FIFO_SIZE_FS           1280
+    #define DFIFO_DEPTH_FS           320
   #else
     #define USB_OTG_HS_PERIPH_BASE    USB_OTG_HS_BASE
     #define EP_MAX_HS                 9
-    #define EP_FIFO_SIZE_HS           4096
+    #define DFIFO_DEPTH_HS           1024
   #endif
 
 #elif CFG_TUSB_MCU == OPT_MCU_STM32WBA
@@ -131,7 +112,7 @@ extern "C" {
   #define USB_OTG_HS_PERIPH_BASE    USB_OTG_HS_BASE_NS
   #define OTG_HS_IRQn               USB_OTG_HS_IRQn
   #define EP_MAX_HS                 9
-  #define EP_FIFO_SIZE_HS           4096
+  #define DFIFO_DEPTH_HS           1024
 #else
   #error "Unsupported MCUs"
 #endif
@@ -147,11 +128,11 @@ extern "C" {
 // - Port0 to OTG_FS, and Port1 to OTG_HS
 static const dwc2_controller_t _dwc2_controller[] = {
     #ifdef USB_OTG_FS_PERIPH_BASE
-    { .reg_base = USB_OTG_FS_PERIPH_BASE, .irqnum = OTG_FS_IRQn, .ep_count = EP_MAX_FS, .ep_fifo_size = EP_FIFO_SIZE_FS },
+    { .reg_base = USB_OTG_FS_PERIPH_BASE, .irqnum = OTG_FS_IRQn, .ep_count = EP_MAX_FS, .otg_dfifo_depth = DFIFO_DEPTH_FS },
     #endif
 
     #ifdef USB_OTG_HS_PERIPH_BASE
-    { .reg_base = USB_OTG_HS_PERIPH_BASE, .irqnum = OTG_HS_IRQn, .ep_count = EP_MAX_HS, .ep_fifo_size = EP_FIFO_SIZE_HS },
+    { .reg_base = USB_OTG_HS_PERIPH_BASE, .irqnum = OTG_HS_IRQn, .ep_count = EP_MAX_HS, .otg_dfifo_depth = DFIFO_DEPTH_HS },
     #endif
 };
 
@@ -161,6 +142,12 @@ static const dwc2_controller_t _dwc2_controller[] = {
 
 // SystemCoreClock is already included by family header
 // extern uint32_t SystemCoreClock;
+
+// MCU specific to enable dwc2 clock/power before any access to register
+TU_ATTR_ALWAYS_INLINE static inline void dwc2_clock_init(uint8_t rhport, tusb_role_t role) {
+  (void) rhport;
+  (void) role;
+}
 
 TU_ATTR_ALWAYS_INLINE static inline void dwc2_int_set(uint8_t rhport, tusb_role_t role, bool enabled) {
   (void) role;
@@ -261,6 +248,22 @@ static inline void dwc2_phy_init(dwc2_regs_t* dwc2, uint8_t hs_phy_type) {
 
       #endif
     }
+  }
+}
+
+// MCU specific PHY deinit, disable PHY power
+static inline void dwc2_phy_deinit(dwc2_regs_t* dwc2, uint8_t hs_phy_type) {
+  if (hs_phy_type == GHWCFG2_HSPHY_NOT_SUPPORTED) {
+    // Disable on-chip FS PHY
+    dwc2->stm32_gccfg &= ~STM32_GCCFG_PWRDWN;
+  } else {
+    // Disable HS PHY
+    #ifdef USB_HS_PHYC
+    dwc2->stm32_gccfg &= ~STM32_GCCFG_PHYHSEN;
+    // Disable PLL and LDO
+    USB_HS_PHYC->USB_HS_PHYC_PLL &= ~USB_HS_PHYC_PLL_PLLEN;
+    USB_HS_PHYC->USB_HS_PHYC_LDO &= ~USB_HS_PHYC_LDO_ENABLE;
+    #endif
   }
 }
 

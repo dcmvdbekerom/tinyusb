@@ -6,7 +6,7 @@
       "hidden": true,
       "description": "Configure preset for the ${presetName} board",
       "generator": "Ninja Multi-Config",
-      "binaryDir": "${sourceDir}/build/${presetName}",
+      "binaryDir": "${sourceDir}/cmake-build-${presetName}",
       "cacheVariables": {
         "CMAKE_DEFAULT_BUILD_TYPE": "RelWithDebInfo",
         "BOARD": "${presetName}"
@@ -17,7 +17,7 @@
       "hidden": true,
       "description": "Configure preset for the ${presetName} board",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}",
+      "binaryDir": "${sourceDir}/cmake-build-${presetName}",
       "cacheVariables": {
         "BOARD": "${presetName}"
       }
@@ -40,6 +40,10 @@
     },
     {
       "name": "apard32690",
+      "inherits": "default"
+    },
+    {
+      "name": "apm32f072_dev_board",
       "inherits": "default"
     },
     {
@@ -91,6 +95,18 @@
       "inherits": "default"
     },
     {
+      "name": "at_start_f455",
+      "inherits": "default"
+    },
+    {
+      "name": "at_start_f456",
+      "inherits": "default"
+    },
+    {
+      "name": "at_start_f457",
+      "inherits": "default"
+    },
+    {
       "name": "atsamd21_xpro",
       "inherits": "default"
     },
@@ -107,6 +123,14 @@
       "inherits": "default"
     },
     {
+      "name": "ch32f205r-r0",
+      "inherits": "default"
+    },
+    {
+      "name": "ch32v103c_bluepill",
+      "inherits": "default"
+    },
+    {
       "name": "ch32v103r_r1_1v0",
       "inherits": "default"
     },
@@ -120,6 +144,10 @@
     },
     {
       "name": "ch32v307v_r1_1v0",
+      "inherits": "default"
+    },
+    {
+      "name": "ch582m_evt",
       "inherits": "default"
     },
     {
@@ -240,6 +268,10 @@
     },
     {
       "name": "frdm_rw612",
+      "inherits": "default"
+    },
+    {
+      "name": "gr_citrus",
       "inherits": "default"
     },
     {
@@ -371,10 +403,6 @@
       "inherits": "default"
     },
     {
-      "name": "metro_m7_1011_sd",
-      "inherits": "default"
-    },
-    {
       "name": "mimxrt1010_evk",
       "inherits": "default"
     },
@@ -415,6 +443,10 @@
       "inherits": "default"
     },
     {
+      "name": "mm900evxb",
+      "inherits": "default"
+    },
+    {
       "name": "msp_exp430f5529lp",
       "inherits": "default"
     },
@@ -451,6 +483,10 @@
       "inherits": "default"
     },
     {
+      "name": "nrf54lm20dk",
+      "inherits": "default"
+    },
+    {
       "name": "nutiny_nuc126v",
       "inherits": "default"
     },
@@ -471,11 +507,19 @@
       "inherits": "default"
     },
     {
+      "name": "pico2_etm_trace",
+      "inherits": "default"
+    },
+    {
       "name": "pico_sdk",
       "inherits": "default"
     },
     {
       "name": "portenta_c33",
+      "inherits": "default"
+    },
+    {
+      "name": "py32f071_dev_board",
       "inherits": "default"
     },
     {
@@ -543,6 +587,10 @@
       "inherits": "default"
     },
     {
+      "name": "rx65n_target",
+      "inherits": "default"
+    },
+    {
       "name": "samd11_xplained",
       "inherits": "default"
     },
@@ -596,6 +644,10 @@
     },
     {
       "name": "stm32c071nucleo",
+      "inherits": "default"
+    },
+    {
+      "name": "stm32c542nucleo",
       "inherits": "default"
     },
     {
@@ -699,6 +751,10 @@
       "inherits": "default"
     },
     {
+      "name": "stm32h533nucleo",
+      "inherits": "default"
+    },
+    {
       "name": "stm32h563nucleo",
       "inherits": "default"
     },
@@ -708,6 +764,10 @@
     },
     {
       "name": "stm32h723nucleo",
+      "inherits": "default"
+    },
+    {
+      "name": "stm32h743_weact",
       "inherits": "default"
     },
     {
@@ -779,6 +839,10 @@
       "inherits": "default"
     },
     {
+      "name": "stm32u083nucleo",
+      "inherits": "default"
+    },
+    {
       "name": "stm32u545nucleo",
       "inherits": "default"
     },
@@ -832,6 +896,10 @@
     },
     {
       "name": "xmc4700_relax",
+      "inherits": "default"
+    },
+    {
+      "name": "yd-ch582m",
       "inherits": "default"
     },
     {
@@ -952,6 +1020,11 @@
       "configurePreset": "apard32690"
     },
     {
+      "name": "apm32f072_dev_board",
+      "description": "Build preset for the apm32f072_dev_board board",
+      "configurePreset": "apm32f072_dev_board"
+    },
+    {
       "name": "arduino_nano33_ble",
       "description": "Build preset for the arduino_nano33_ble board",
       "configurePreset": "arduino_nano33_ble"
@@ -1012,6 +1085,21 @@
       "configurePreset": "at_start_f437"
     },
     {
+      "name": "at_start_f455",
+      "description": "Build preset for the at_start_f455 board",
+      "configurePreset": "at_start_f455"
+    },
+    {
+      "name": "at_start_f456",
+      "description": "Build preset for the at_start_f456 board",
+      "configurePreset": "at_start_f456"
+    },
+    {
+      "name": "at_start_f457",
+      "description": "Build preset for the at_start_f457 board",
+      "configurePreset": "at_start_f457"
+    },
+    {
       "name": "atsamd21_xpro",
       "description": "Build preset for the atsamd21_xpro board",
       "configurePreset": "atsamd21_xpro"
@@ -1032,6 +1120,16 @@
       "configurePreset": "b_u585i_iot2a"
     },
     {
+      "name": "ch32f205r-r0",
+      "description": "Build preset for the ch32f205r-r0 board",
+      "configurePreset": "ch32f205r-r0"
+    },
+    {
+      "name": "ch32v103c_bluepill",
+      "description": "Build preset for the ch32v103c_bluepill board",
+      "configurePreset": "ch32v103c_bluepill"
+    },
+    {
       "name": "ch32v103r_r1_1v0",
       "description": "Build preset for the ch32v103r_r1_1v0 board",
       "configurePreset": "ch32v103r_r1_1v0"
@@ -1050,6 +1148,11 @@
       "name": "ch32v307v_r1_1v0",
       "description": "Build preset for the ch32v307v_r1_1v0 board",
       "configurePreset": "ch32v307v_r1_1v0"
+    },
+    {
+      "name": "ch582m_evt",
+      "description": "Build preset for the ch582m_evt board",
+      "configurePreset": "ch582m_evt"
     },
     {
       "name": "circuitplayground_bluefruit",
@@ -1247,6 +1350,11 @@
       "configurePreset": "frdm_rw612"
     },
     {
+      "name": "gr_citrus",
+      "description": "Build preset for the gr_citrus board",
+      "configurePreset": "gr_citrus"
+    },
+    {
       "name": "hpm6750evk2",
       "description": "Build preset for the hpm6750evk2 board",
       "configurePreset": "hpm6750evk2"
@@ -1407,11 +1515,6 @@
       "configurePreset": "metro_m7_1011"
     },
     {
-      "name": "metro_m7_1011_sd",
-      "description": "Build preset for the metro_m7_1011_sd board",
-      "configurePreset": "metro_m7_1011_sd"
-    },
-    {
       "name": "mimxrt1010_evk",
       "description": "Build preset for the mimxrt1010_evk board",
       "configurePreset": "mimxrt1010_evk"
@@ -1462,6 +1565,11 @@
       "configurePreset": "mm32f327x_pitaya_lite"
     },
     {
+      "name": "mm900evxb",
+      "description": "Build preset for the mm900evxb board",
+      "configurePreset": "mm900evxb"
+    },
+    {
       "name": "msp_exp430f5529lp",
       "description": "Build preset for the msp_exp430f5529lp board",
       "configurePreset": "msp_exp430f5529lp"
@@ -1507,6 +1615,11 @@
       "configurePreset": "nrf54h20dk"
     },
     {
+      "name": "nrf54lm20dk",
+      "description": "Build preset for the nrf54lm20dk board",
+      "configurePreset": "nrf54lm20dk"
+    },
+    {
       "name": "nutiny_nuc126v",
       "description": "Build preset for the nutiny_nuc126v board",
       "configurePreset": "nutiny_nuc126v"
@@ -1532,6 +1645,11 @@
       "configurePreset": "nutiny_sdk_nuc505"
     },
     {
+      "name": "pico2_etm_trace",
+      "description": "Build preset for the pico2_etm_trace board",
+      "configurePreset": "pico2_etm_trace"
+    },
+    {
       "name": "pico_sdk",
       "description": "Build preset for the pico_sdk board",
       "configurePreset": "pico_sdk"
@@ -1540,6 +1658,11 @@
       "name": "portenta_c33",
       "description": "Build preset for the portenta_c33 board",
       "configurePreset": "portenta_c33"
+    },
+    {
+      "name": "py32f071_dev_board",
+      "description": "Build preset for the py32f071_dev_board board",
+      "configurePreset": "py32f071_dev_board"
     },
     {
       "name": "pybadge",
@@ -1622,6 +1745,11 @@
       "configurePreset": "raspberrypi_zero2"
     },
     {
+      "name": "rx65n_target",
+      "description": "Build preset for the rx65n_target board",
+      "configurePreset": "rx65n_target"
+    },
+    {
       "name": "samd11_xplained",
       "description": "Build preset for the samd11_xplained board",
       "configurePreset": "samd11_xplained"
@@ -1690,6 +1818,11 @@
       "name": "stm32c071nucleo",
       "description": "Build preset for the stm32c071nucleo board",
       "configurePreset": "stm32c071nucleo"
+    },
+    {
+      "name": "stm32c542nucleo",
+      "description": "Build preset for the stm32c542nucleo board",
+      "configurePreset": "stm32c542nucleo"
     },
     {
       "name": "stm32f070rbnucleo",
@@ -1817,6 +1950,11 @@
       "configurePreset": "stm32h503nucleo"
     },
     {
+      "name": "stm32h533nucleo",
+      "description": "Build preset for the stm32h533nucleo board",
+      "configurePreset": "stm32h533nucleo"
+    },
+    {
       "name": "stm32h563nucleo",
       "description": "Build preset for the stm32h563nucleo board",
       "configurePreset": "stm32h563nucleo"
@@ -1830,6 +1968,11 @@
       "name": "stm32h723nucleo",
       "description": "Build preset for the stm32h723nucleo board",
       "configurePreset": "stm32h723nucleo"
+    },
+    {
+      "name": "stm32h743_weact",
+      "description": "Build preset for the stm32h743_weact board",
+      "configurePreset": "stm32h743_weact"
     },
     {
       "name": "stm32h743eval",
@@ -1917,6 +2060,11 @@
       "configurePreset": "stm32u083cdk"
     },
     {
+      "name": "stm32u083nucleo",
+      "description": "Build preset for the stm32u083nucleo board",
+      "configurePreset": "stm32u083nucleo"
+    },
+    {
       "name": "stm32u545nucleo",
       "description": "Build preset for the stm32u545nucleo board",
       "configurePreset": "stm32u545nucleo"
@@ -1985,6 +2133,11 @@
       "name": "xmc4700_relax",
       "description": "Build preset for the xmc4700_relax board",
       "configurePreset": "xmc4700_relax"
+    },
+    {
+      "name": "yd-ch582m",
+      "description": "Build preset for the yd-ch582m board",
+      "configurePreset": "yd-ch582m"
     }
   ],
   "workflowPresets": [
@@ -2128,6 +2281,19 @@
         {
           "type": "build",
           "name": "apard32690"
+        }
+      ]
+    },
+    {
+      "name": "apm32f072_dev_board",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "apm32f072_dev_board"
+        },
+        {
+          "type": "build",
+          "name": "apm32f072_dev_board"
         }
       ]
     },
@@ -2288,6 +2454,45 @@
       ]
     },
     {
+      "name": "at_start_f455",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "at_start_f455"
+        },
+        {
+          "type": "build",
+          "name": "at_start_f455"
+        }
+      ]
+    },
+    {
+      "name": "at_start_f456",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "at_start_f456"
+        },
+        {
+          "type": "build",
+          "name": "at_start_f456"
+        }
+      ]
+    },
+    {
+      "name": "at_start_f457",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "at_start_f457"
+        },
+        {
+          "type": "build",
+          "name": "at_start_f457"
+        }
+      ]
+    },
+    {
       "name": "atsamd21_xpro",
       "steps": [
         {
@@ -2340,6 +2545,32 @@
       ]
     },
     {
+      "name": "ch32f205r-r0",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ch32f205r-r0"
+        },
+        {
+          "type": "build",
+          "name": "ch32f205r-r0"
+        }
+      ]
+    },
+    {
+      "name": "ch32v103c_bluepill",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ch32v103c_bluepill"
+        },
+        {
+          "type": "build",
+          "name": "ch32v103c_bluepill"
+        }
+      ]
+    },
+    {
       "name": "ch32v103r_r1_1v0",
       "steps": [
         {
@@ -2388,6 +2619,19 @@
         {
           "type": "build",
           "name": "ch32v307v_r1_1v0"
+        }
+      ]
+    },
+    {
+      "name": "ch582m_evt",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ch582m_evt"
+        },
+        {
+          "type": "build",
+          "name": "ch582m_evt"
         }
       ]
     },
@@ -2899,6 +3143,19 @@
       ]
     },
     {
+      "name": "gr_citrus",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "gr_citrus"
+        },
+        {
+          "type": "build",
+          "name": "gr_citrus"
+        }
+      ]
+    },
+    {
       "name": "hpm6750evk2",
       "steps": [
         {
@@ -3315,19 +3572,6 @@
       ]
     },
     {
-      "name": "metro_m7_1011_sd",
-      "steps": [
-        {
-          "type": "configure",
-          "name": "metro_m7_1011_sd"
-        },
-        {
-          "type": "build",
-          "name": "metro_m7_1011_sd"
-        }
-      ]
-    },
-    {
       "name": "mimxrt1010_evk",
       "steps": [
         {
@@ -3458,6 +3702,19 @@
       ]
     },
     {
+      "name": "mm900evxb",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "mm900evxb"
+        },
+        {
+          "type": "build",
+          "name": "mm900evxb"
+        }
+      ]
+    },
+    {
       "name": "msp_exp430f5529lp",
       "steps": [
         {
@@ -3575,6 +3832,19 @@
       ]
     },
     {
+      "name": "nrf54lm20dk",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "nrf54lm20dk"
+        },
+        {
+          "type": "build",
+          "name": "nrf54lm20dk"
+        }
+      ]
+    },
+    {
       "name": "nutiny_nuc126v",
       "steps": [
         {
@@ -3640,6 +3910,19 @@
       ]
     },
     {
+      "name": "pico2_etm_trace",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "pico2_etm_trace"
+        },
+        {
+          "type": "build",
+          "name": "pico2_etm_trace"
+        }
+      ]
+    },
+    {
       "name": "pico_sdk",
       "steps": [
         {
@@ -3662,6 +3945,19 @@
         {
           "type": "build",
           "name": "portenta_c33"
+        }
+      ]
+    },
+    {
+      "name": "py32f071_dev_board",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "py32f071_dev_board"
+        },
+        {
+          "type": "build",
+          "name": "py32f071_dev_board"
         }
       ]
     },
@@ -3874,6 +4170,19 @@
       ]
     },
     {
+      "name": "rx65n_target",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "rx65n_target"
+        },
+        {
+          "type": "build",
+          "name": "rx65n_target"
+        }
+      ]
+    },
+    {
       "name": "samd11_xplained",
       "steps": [
         {
@@ -4052,6 +4361,19 @@
         {
           "type": "build",
           "name": "stm32c071nucleo"
+        }
+      ]
+    },
+    {
+      "name": "stm32c542nucleo",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "stm32c542nucleo"
+        },
+        {
+          "type": "build",
+          "name": "stm32c542nucleo"
         }
       ]
     },
@@ -4381,6 +4703,19 @@
       ]
     },
     {
+      "name": "stm32h533nucleo",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "stm32h533nucleo"
+        },
+        {
+          "type": "build",
+          "name": "stm32h533nucleo"
+        }
+      ]
+    },
+    {
       "name": "stm32h563nucleo",
       "steps": [
         {
@@ -4416,6 +4751,19 @@
         {
           "type": "build",
           "name": "stm32h723nucleo"
+        }
+      ]
+    },
+    {
+      "name": "stm32h743_weact",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "stm32h743_weact"
+        },
+        {
+          "type": "build",
+          "name": "stm32h743_weact"
         }
       ]
     },
@@ -4641,6 +4989,19 @@
       ]
     },
     {
+      "name": "stm32u083nucleo",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "stm32u083nucleo"
+        },
+        {
+          "type": "build",
+          "name": "stm32u083nucleo"
+        }
+      ]
+    },
+    {
       "name": "stm32u545nucleo",
       "steps": [
         {
@@ -4819,6 +5180,19 @@
         {
           "type": "build",
           "name": "xmc4700_relax"
+        }
+      ]
+    },
+    {
+      "name": "yd-ch582m",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "yd-ch582m"
+        },
+        {
+          "type": "build",
+          "name": "yd-ch582m"
         }
       ]
     }

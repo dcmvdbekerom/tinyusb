@@ -40,8 +40,7 @@
 #include "stm32h7rsxx_ll_exti.h"
 #include "stm32h7rsxx_ll_system.h"
 
-#define UART_DEV              USART3
-#define UART_CLK_EN           __HAL_RCC_USART3_CLK_ENABLE
+#define UART_ID               3
 
 // VBUS Sense detection
 #define OTG_FS_VBUS_SENSE     0
@@ -62,7 +61,7 @@ static board_pindef_t board_pindef[] = {
   { // Button
     .port = GPIOC,
     .pin_init = { .Pin = GPIO_PIN_13, .Mode = GPIO_MODE_INPUT, .Pull = GPIO_PULLUP, .Speed = GPIO_SPEED_FREQ_HIGH, .Alternate = 0 },
-    .active_state = 1
+    .active_state = 0
   },
   { // UART TX
     .port = GPIOD,
@@ -124,7 +123,13 @@ static inline void SystemClock_Config(void)
   RCC_OscInitStruct.PLL1.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL1.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL1.PLLM = 12;
+#ifdef TRACE_ETM
+  // 300 MHz core -> 50 MHz trace clock: at 600 MHz the stream survives idle
+  // but dies (unknown trace packet) during IRQ-heavy bursts, e.g. USB traffic
+  RCC_OscInitStruct.PLL1.PLLN = 150;
+#else
   RCC_OscInitStruct.PLL1.PLLN = 300;
+#endif
   RCC_OscInitStruct.PLL1.PLLP = 1;
   RCC_OscInitStruct.PLL1.PLLQ = 2;
   RCC_OscInitStruct.PLL1.PLLR = 2;
@@ -224,6 +229,10 @@ int32_t i2c_writereg(uint16_t DevAddr, uint16_t Reg, uint8_t *pData, uint16_t Le
   return 0;
 }
 
+static int32_t i2c_get_tick(void) {
+  return (int32_t) HAL_GetTick();
+}
+
 static inline void board_init2(void) {
   TCPP0203_IO_t            io_ctx;
 
@@ -232,6 +241,7 @@ static inline void board_init2(void) {
   io_ctx.DeInit      = board_tcpp0203_deinit;
   io_ctx.ReadReg     = i2c_readreg;
   io_ctx.WriteReg    = i2c_writereg;
+  io_ctx.GetTick     = i2c_get_tick;
 
   TU_ASSERT(TCPP0203_RegisterBusIO(&tcpp0203_obj, &io_ctx) == TCPP0203_OK, );
 

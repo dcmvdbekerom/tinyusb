@@ -44,13 +44,26 @@ typedef struct {
 
 #include "board.h"
 
+#ifdef UART_ID
+  #if UART_ID == 1
+    #define USARTn            USART1
+    #define UARTn_CLK_ENABLE  __HAL_RCC_USART1_CLK_ENABLE
+  #elif UART_ID == 2
+    #define USARTn            USART2
+    #define UARTn_CLK_ENABLE  __HAL_RCC_USART2_CLK_ENABLE
+  #elif UART_ID == 3
+    #define USARTn            USART3
+    #define UARTn_CLK_ENABLE  __HAL_RCC_USART3_CLK_ENABLE
+  #endif
+#endif
+
 //--------------------------------------------------------------------+
 // MACRO TYPEDEF CONSTANT ENUM
 //--------------------------------------------------------------------+
 
-#ifdef UART_DEV
+#ifdef UART_ID
 static UART_HandleTypeDef UartHandle = {
-  .Instance = UART_DEV,
+  .Instance = USARTn,
   .Init = {
     .BaudRate = CFG_BOARD_UART_BAUDRATE,
     .WordLength = UART_WORDLENGTH_8B,
@@ -85,17 +98,24 @@ void OTG_HS_IRQHandler(void) {
 
 #ifdef TRACE_ETM
 void trace_etm_init(void) {
-  // H7 trace pin is PE2 to PE6
-  GPIO_InitTypeDef  gpio_init;
-  gpio_init.Pin       = GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6;
+  // Nucleo-H7S3L8 routes 4-bit trace to the CN1 MIPI20: TRACE_CLK/D0 on
+  // PE2/PE3, TRACE_D1/D2/D3 on the PG14/PD2/PC12 alternates (MB1737 Table 7).
+  // No pull: pull-ups degrade the edges at the 100 MHz trace clock (= cpu/3/2)
+  GPIO_InitTypeDef gpio_init;
   gpio_init.Mode      = GPIO_MODE_AF_PP;
-  gpio_init.Pull      = GPIO_PULLUP;
+  gpio_init.Pull      = GPIO_NOPULL;
   gpio_init.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
   gpio_init.Alternate = GPIO_AF0_TRACE;
+  gpio_init.Pin = GPIO_PIN_2 | GPIO_PIN_3;
   HAL_GPIO_Init(GPIOE, &gpio_init);
+  gpio_init.Pin = GPIO_PIN_14;
+  HAL_GPIO_Init(GPIOG, &gpio_init);
+  gpio_init.Pin = GPIO_PIN_2;
+  HAL_GPIO_Init(GPIOD, &gpio_init);
+  gpio_init.Pin = GPIO_PIN_12;
+  HAL_GPIO_Init(GPIOC, &gpio_init);
 
-  // Enable trace clk, also in D1 and D3 domain
-  DBGMCU->CR |= DBGMCU_CR_DBG_TRACECKEN | DBGMCU_CR_DBG_CKD1EN | DBGMCU_CR_DBG_CKD3EN;
+  DBGMCU->CR |= DBGMCU_CR_DBGCKEN | DBGMCU_CR_TRACECLKEN;
 }
 #else
   #define trace_etm_init()
@@ -317,9 +337,10 @@ void board_init(void) {
 
 
 
-#ifdef UART_DEV
-  UART_CLK_EN();
+#ifdef UART_ID
+  UARTn_CLK_ENABLE();
   HAL_UART_Init(&UartHandle);
+  HAL_UARTEx_EnableFifoMode(&UartHandle);
 #endif
 
   //------------- USB FS -------------//
@@ -444,16 +465,36 @@ size_t board_get_unique_id(uint8_t id[], size_t max_len) {
 }
 
 int board_uart_read(uint8_t *buf, int len) {
-  (void) buf;
-  (void) len;
+#ifdef UART_ID
+  int count = 0;
+  while (count < len) {
+    if (__HAL_UART_GET_FLAG(&UartHandle, UART_FLAG_RXNE)) {
+      buf[count] = (uint8_t) UartHandle.Instance->RDR;
+      count++;
+    } else {
+      break;
+    }
+  }
+  return count;
+#else
+  (void) buf; (void) len;
   return 0;
+#endif
 }
 
 int board_uart_write(void const *buf, int len) {
-#ifdef UART_DEV
-  HAL_UART_Transmit(&UartHandle, (uint8_t * )(uintptr_t)
-  buf, len, 0xffff);
-  return len;
+#ifdef UART_ID
+  const uint8_t *p = (const uint8_t *) buf;
+  int count = 0;
+  while (count < len) {
+    if (__HAL_UART_GET_FLAG(&UartHandle, UART_FLAG_TXE)) {
+      UartHandle.Instance->TDR = p[count];
+      count++;
+    } else {
+      break;
+    }
+  }
+  return count;
 #else
   (void) buf; (void) len;
   return -1;
@@ -468,7 +509,7 @@ void SysTick_Handler(void) {
   system_ticks++;
 }
 
-uint32_t board_millis(void) {
+uint32_t tusb_time_millis_api(void) {
   return system_ticks;
 }
 

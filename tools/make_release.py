@@ -3,7 +3,7 @@ import re
 import gen_doc
 import gen_presets
 
-version = '0.20.0'
+version = '0.21.0'
 
 print('version {}'.format(version))
 ver_id = version.split('.')
@@ -30,7 +30,7 @@ with open(f_repository_yml) as f:
     fdata = f.read()
 
 if fdata.find(version) < 0:
-    fdata = re.sub(r'("0-latest"): "\d+\.\d+\.\d+"', r'"{}": "{}"\r\n    \1: "{}"'.format(version, version, version), fdata)
+    fdata = re.sub(r'("0-latest"): "\d+\.\d+\.\d+"', r'"{}": "{}"\n    \1: "{}"'.format(version, version, version), fdata)
     with open(f_repository_yml, 'w') as f:
         f.write(fdata)
 
@@ -59,11 +59,12 @@ with open(f_sonar_properties, 'w') as f:
 # gen docs
 gen_doc.gen_deps_doc()
 gen_doc.gen_boards_doc()
+gen_doc.gen_hil_boards_doc()
 
 # gen presets
 gen_presets.main()
 
-##################(ver#
-# docs/info/changelog.rst
 ###################
-print("Update docs/info/changelog.rst")
+# docs/changelog/
+###################
+print("Add docs/changelog/{}.md and list it at the top of docs/changelog/index.rst".format(version))

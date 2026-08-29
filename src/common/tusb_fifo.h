@@ -1,26 +1,7 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2019 Ha Thach (tinyusb.org)
- * Copyright (c) 2020 Reinhard Panhuber - rework to unmasked pointers
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-FileCopyrightText: Copyright (c) 2019 Ha Thach (tinyusb.org)
+ * SPDX-FileCopyrightText: Copyright (c) 2020 Reinhard Panhuber
+ * SPDX-License-Identifier: MIT
  *
  * This file is part of the TinyUSB stack.
  */
@@ -120,9 +101,9 @@ typedef struct {
   uint8_t *buffer;              // buffer pointer
   uint16_t depth;               // max items
   bool     overwritable;        // overwritable when full
-  // 1 byte padding  here
+  // 1 byte padding here
 
-  volatile uint16_t wr_idx;     // write index TODO maybe can drop volatile
+  volatile uint16_t wr_idx;     // write index
   volatile uint16_t rd_idx;     // read index
 
 #if OSAL_MUTEX_REQUIRED
@@ -291,16 +272,22 @@ TU_ATTR_ALWAYS_INLINE static inline bool tu_fifo_empty(const tu_fifo_t *f) {
 
 // return number of items in fifo, capped to fifo's depth
 TU_ATTR_ALWAYS_INLINE static inline uint16_t tu_fifo_count(const tu_fifo_t *f) {
-  return tu_min16(tu_ff_overflow_count(f->depth, f->wr_idx, f->rd_idx), f->depth);
+  const uint16_t wr_idx = f->wr_idx;
+  const uint16_t rd_idx = f->rd_idx;
+  return tu_min16(tu_ff_overflow_count(f->depth, wr_idx, rd_idx), f->depth);
 }
 
 // check if fifo is full
 TU_ATTR_ALWAYS_INLINE static inline bool tu_fifo_full(const tu_fifo_t *f) {
-  return tu_ff_overflow_count(f->depth, f->wr_idx, f->rd_idx) >= f->depth;
+  const uint16_t wr_idx = f->wr_idx;
+  const uint16_t rd_idx = f->rd_idx;
+  return tu_ff_overflow_count(f->depth, wr_idx, rd_idx) >= f->depth;
 }
 
 TU_ATTR_ALWAYS_INLINE static inline uint16_t tu_fifo_remaining(const tu_fifo_t *f) {
-  return tu_ff_remaining_local(f->depth, f->wr_idx, f->rd_idx);
+  const uint16_t wr_idx = f->wr_idx;
+  const uint16_t rd_idx = f->rd_idx;
+  return tu_ff_remaining_local(f->depth, wr_idx, rd_idx);
 }
 
 #ifdef __cplusplus

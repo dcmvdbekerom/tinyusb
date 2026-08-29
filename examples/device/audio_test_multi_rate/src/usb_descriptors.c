@@ -28,15 +28,8 @@
 #include "tusb.h"
 #include "usb_descriptors.h"
 
-/* A combination of interfaces must have a unique product id, since PC will save device driver after the first plug.
- * Same VID/PID with different interface e.g MSC (first), then CDC (later) will possibly cause system error on PC.
- *
- * Auto ProductID layout's Bitmap:
- *   [MSB]     AUDIO | MIDI | HID | MSC | CDC          [LSB]
- */
-#define PID_MAP(itf, n)  ((CFG_TUD_##itf) ? (1 << (n)) : 0)
-#define USB_PID           (0x4000 | PID_MAP(CDC, 0) | PID_MAP(MSC, 1) | PID_MAP(HID, 2) | \
-    PID_MAP(MIDI, 3) | PID_MAP(AUDIO, 4) | PID_MAP(VENDOR, 5) )
+// Unique PID per example: guarantees re-enumeration on re-flash and a fresh host driver match.
+#define USB_PID           0x4005
 
 //--------------------------------------------------------------------+
 // Device Descriptors
@@ -87,6 +80,14 @@ enum {
 #elif TU_CHECK_MCU(OPT_MCU_NRF5X)
   // nRF5x ISO can only be endpoint 8
   #define EPNUM_AUDIO   0x08
+
+#elif TU_CHECK_MCU(OPT_MCU_MAX32650, OPT_MCU_MAX32666, OPT_MCU_MAX32690, OPT_MCU_MAX78002)
+  // Put audio iso on EP>=8 so the 2048/4096-byte FIFOs can back double packet buffering
+  #define EPNUM_AUDIO   0x0A
+
+#elif TU_CHECK_MCU(OPT_MCU_CH32V20X, OPT_MCU_CH32V307)
+  // Only EP3 is available for ISO
+  #define EPNUM_AUDIO   0x03
 
 #else
   #define EPNUM_AUDIO   0x01

@@ -1,25 +1,7 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2019 Peter Lawrence
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-FileCopyrightText: Copyright (c) 2019 Peter Lawrence
+ * SPDX-FileCopyrightText: Copyright (c) 2019 Ha Thach (tinyusb.org)
+ * SPDX-License-Identifier: MIT
  *
  * This file is part of the TinyUSB stack.
  */
@@ -42,6 +24,8 @@
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wredundant-decls"
+#pragma GCC diagnostic ignored "-Wconversion"
+#pragma GCC diagnostic ignored "-Wsign-conversion"
 #endif
 
 #include "NuMicro.h"
@@ -291,7 +275,7 @@ bool dcd_edpt_open(uint8_t rhport, tusb_desc_endpoint_t const * p_endpoint_desc)
 
   /* mine the data for the information we need */
   int const dir = tu_edpt_dir(p_endpoint_desc->bEndpointAddress);
-  int const size = tu_edpt_packet_size(p_endpoint_desc);
+  uint16_t const size = tu_edpt_packet_size(p_endpoint_desc);
   tusb_xfer_type_t const type = (tusb_xfer_type_t) p_endpoint_desc->bmAttributes.xfer;
   struct xfer_ctl_t *xfer = &xfer_table[ep - USBD->EP];
 
@@ -478,7 +462,7 @@ void dcd_int_handler(uint8_t rhport)
   {
     if (status & USBD_INTSTS_EPEVT0_Msk) /* PERIPH_EP0 (EP0_IN) event: this is treated separately from the rest */
     {
-      uint16_t const available_bytes = USBD->EP[PERIPH_EP0].MXPLD;
+      uint16_t const available_bytes = (uint16_t)USBD->EP[PERIPH_EP0].MXPLD;
 
       active_ep0_xfer = (available_bytes == xfer_table[PERIPH_EP0].max_packet_size);
 
@@ -496,7 +480,7 @@ void dcd_int_handler(uint8_t rhport)
       {
         USBD->INTSTS = mask;
 
-        uint16_t const available_bytes = ep->MXPLD;
+        uint16_t const available_bytes = (uint16_t)ep->MXPLD;
         uint8_t const ep_addr = decode_ep_addr(ep);
         bool const out_ep = !(ep_addr & TUSB_DIR_IN_MASK);
 

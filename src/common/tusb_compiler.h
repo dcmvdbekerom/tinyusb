@@ -1,25 +1,6 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2019 Ha Thach (tinyusb.org)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-FileCopyrightText: Copyright (c) 2019 Ha Thach (tinyusb.org)
+ * SPDX-License-Identifier: MIT
  *
  * This file is part of the TinyUSB stack.
  */
@@ -65,6 +46,9 @@
 
 #define TU_LITTLE_ENDIAN (0x12u)
 #define TU_BIG_ENDIAN (0x21u)
+
+#define TU_BITFIELD_LE (0x34u)
+#define TU_BITFIELD_BE (0x43u)
 
 /*------------------------------------------------------------------*/
 /* Count number of arguments of __VA_ARGS__
@@ -167,8 +151,10 @@
 // For TI ARM compiler, __BYTE_ORDER__ is not defined for MSP430 but still LE
   #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ || defined(__MSP430__)
     #define TU_BYTE_ORDER TU_LITTLE_ENDIAN
+    #define TU_BITFIELD_ORDER TU_BITFIELD_LE
   #else
     #define TU_BYTE_ORDER TU_BIG_ENDIAN
+    #define TU_BITFIELD_ORDER TU_BITFIELD_BE
   #endif
 
   // Unfortunately XC16 doesn't provide builtins for 32bit endian conversion
@@ -212,8 +198,10 @@
   // Endian conversion use well-known host to network (big endian) naming
   #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
     #define TU_BYTE_ORDER TU_LITTLE_ENDIAN
+    #define TU_BITFIELD_ORDER TU_BITFIELD_LE
   #else
     #define TU_BYTE_ORDER TU_BIG_ENDIAN
+    #define TU_BITFIELD_ORDER TU_BITFIELD_BE
   #endif
 
   #define TU_BSWAP16(u16) (__iar_builtin_REV16(u16))
@@ -239,8 +227,10 @@
   // Endian conversion use well-known host to network (big endian) naming
   #if defined(__LIT)
     #define TU_BYTE_ORDER TU_LITTLE_ENDIAN
+    #define TU_BITFIELD_ORDER TU_BITFIELD_LE
   #else
     #define TU_BYTE_ORDER TU_BIG_ENDIAN
+    #define TU_BITFIELD_ORDER TU_BITFIELD_BE
   #endif
 
   #define TU_BSWAP16(u16) ((unsigned short)_builtin_revw((unsigned long)u16))

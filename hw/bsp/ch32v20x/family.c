@@ -27,25 +27,25 @@ manufacturer: WCH
  * - CFG_TUD_WCH_USBIP_USBFS
  */
 
-// Port0: USBD (fsdev)
-__attribute__((interrupt)) __attribute__((used)) void USB_LP_CAN1_RX0_IRQHandler(void) {
-  #if CFG_TUD_WCH_USBIP_FSDEV
-  tud_int_handler(0);
-  #endif
-}
-
-__attribute__((interrupt)) __attribute__((used)) void USB_HP_CAN1_TX_IRQHandler(void) {
-  #if CFG_TUD_WCH_USBIP_FSDEV
-  tud_int_handler(0);
-  #endif
-
-}
-
-__attribute__((interrupt)) __attribute__((used)) void USBWakeUp_IRQHandler(void) {
-  #if CFG_TUD_WCH_USBIP_FSDEV
-  tud_int_handler(0);
-  #endif
-}
+// Port0: USBD (fsdev). The USBD raises three IRQ lines (LP/HP/WakeUp) that all funnel into the
+// non-reentrant tud_int_handler and can nest (HP preempts LP) with QingKe HWSTK enabled. The
+// mainline toolchain's plain __attribute__((interrupt)) emits a software prologue that fights the
+// hardware context stack and corrupts the return on nesting. Emit naked handlers that rely on
+// HWSTK for context save/restore (equivalent to WCH's "WCH-Interrupt-fast"), which nests safely.
+#if CFG_TUD_ENABLED && CFG_TUD_WCH_USBIP_FSDEV
+  // The `call dcd_int_handler` below lives inside naked asm where LTO cannot see it; without a
+  // compiler-visible reference, -flto builds (make) internalize/drop the symbol and the link fails.
+  TU_ATTR_USED static void (*const fsdev_isr_keep)(uint8_t) = dcd_int_handler;
+  #define FSDEV_NAKED_ISR(name) \
+    __attribute__((naked)) __attribute__((used)) void name(void) { \
+      __asm volatile("li a0, 0\n\t call dcd_int_handler\n\t mret"); }
+#else
+  #define FSDEV_NAKED_ISR(name) \
+    __attribute__((naked)) __attribute__((used)) void name(void) { __asm volatile("mret"); }
+#endif
+FSDEV_NAKED_ISR(USB_LP_CAN1_RX0_IRQHandler)
+FSDEV_NAKED_ISR(USB_HP_CAN1_TX_IRQHandler)
+FSDEV_NAKED_ISR(USBWakeUp_IRQHandler)
 
 // Port1: USBFS
 __attribute__((interrupt)) __attribute__((used)) void USBHD_IRQHandler(void) {
@@ -85,7 +85,7 @@ static uint32_t SysTick_Config(uint32_t ticks) {
   return 0;
 }
 
-uint32_t board_millis(void) {
+uint32_t tusb_time_millis_api(void) {
   return system_ticks;
 }
 #endif
@@ -207,14 +207,19 @@ int board_uart_read(uint8_t *buf, int len) {
 
 int board_uart_write(void const *buf, int len) {
 #ifdef UART_DEV
-  const char *bufc = (const char *) buf;
-  for (int i = 0; i < len; i++) {
-    while (USART_GetFlagStatus(UART_DEV, USART_FLAG_TC) == RESET);
-    USART_SendData(UART_DEV, *bufc++);
+  uint8_t const *p = (uint8_t const *) buf;
+  int count = 0;
+  while (count < len) {
+    if (USART_GetFlagStatus(UART_DEV, USART_FLAG_TC) != RESET) {
+      USART_SendData(UART_DEV, p[count]);
+      count++;
+    } else {
+      break;
+    }
   }
+  return count;
 #else
   (void) buf; (void) len;
+  return -1;
 #endif
-
-  return len;
 }

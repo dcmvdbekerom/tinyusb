@@ -46,6 +46,10 @@
 TU_ATTR_UNUSED static void Error_Handler(void) {
 }
 
+// STM32H5 errata: reading UID_BASE with ICACHE enabled causes hard fault.
+// Cache the unique ID early in board_init() before ICACHE may be enabled.
+static uint32_t cached_uid[3];
+
 typedef struct {
   GPIO_TypeDef* port;
   GPIO_InitTypeDef pin_init;
@@ -53,6 +57,19 @@ typedef struct {
 } board_pindef_t;
 
 #include "board.h"
+
+#ifdef UART_ID
+  #if UART_ID == 1
+    #define USARTn            USART1
+    #define UARTn_CLK_ENABLE  __HAL_RCC_USART1_CLK_ENABLE
+  #elif UART_ID == 2
+    #define USARTn            USART2
+    #define UARTn_CLK_ENABLE  __HAL_RCC_USART2_CLK_ENABLE
+  #elif UART_ID == 3
+    #define USARTn            USART3
+    #define UARTn_CLK_ENABLE  __HAL_RCC_USART3_CLK_ENABLE
+  #endif
+#endif
 
 //--------------------------------------------------------------------+
 // Forward USB interrupt events to TinyUSB IRQ Handler
@@ -64,9 +81,9 @@ void USB_DRD_FS_IRQHandler(void) {
 //--------------------------------------------------------------------+
 // MACRO TYPEDEF CONSTANT ENUM
 //--------------------------------------------------------------------+
-#ifdef UART_DEV
+#ifdef UART_ID
 static UART_HandleTypeDef UartHandle = {
-  .Instance = UART_DEV,
+  .Instance = USARTn,
   .Init = {
     .BaudRate = CFG_BOARD_UART_BAUDRATE,
     .WordLength = UART_WORDLENGTH_8B,
@@ -74,13 +91,39 @@ static UART_HandleTypeDef UartHandle = {
     .Parity = UART_PARITY_NONE,
     .HwFlowCtl = UART_HWCONTROL_NONE,
     .Mode = UART_MODE_TX_RX,
-    .OverSampling = UART_OVERSAMPLING_16,
-    .AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT
+    .OverSampling = UART_OVERSAMPLING_16
+  },
+  .AdvancedInit = {
+    .AdvFeatureInit = UART_ADVFEATURE_NO_INIT
   }
 };
 #endif
 
+#ifdef TRACE_ETM
+static void trace_etm_init(void) {
+  // H5 trace pins are PE2 to PE6 (Nucleo-144: requires trace solder-bridge config, see board docs)
+  GPIO_InitTypeDef gpio_init;
+  gpio_init.Pin       = GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6;
+  gpio_init.Mode      = GPIO_MODE_AF_PP;
+  gpio_init.Pull      = GPIO_PULLUP;
+  gpio_init.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
+  gpio_init.Alternate = GPIO_AF0_TRACE;
+  HAL_GPIO_Init(GPIOE, &gpio_init);
+
+  // Enable trace port + clock, synchronous 4-bit mode
+  DBGMCU->CR |= DBGMCU_CR_TRACE_IOEN | DBGMCU_CR_TRACE_CLKEN | DBGMCU_CR_TRACE_MODE;
+}
+#else
+#define trace_etm_init()
+#endif
+
 void board_init(void) {
+  // Cache UID before ICACHE is enabled (STM32H5 errata: reading UID_BASE with ICACHE causes hard fault)
+  volatile uint32_t* stm32_uuid = (volatile uint32_t*) UID_BASE;
+  cached_uid[0] = stm32_uuid[0];
+  cached_uid[1] = stm32_uuid[1];
+  cached_uid[2] = stm32_uuid[2];
+
   HAL_Init(); // required for HAL_RCC_Osc TODO check with freeRTOS
   SystemClock_Config(); // implemented in board.h
   SystemCoreClockUpdate();
@@ -102,6 +145,8 @@ void board_init(void) {
   __HAL_RCC_GPIOI_CLK_ENABLE();
   #endif
 
+  trace_etm_init();
+
   #if CFG_TUSB_OS == OPT_OS_NONE
   // 1ms tick timer
   SysTick_Config(SystemCoreClock / 1000);
@@ -117,9 +162,10 @@ void board_init(void) {
     HAL_GPIO_Init(board_pindef[i].port, &board_pindef[i].pin_init);
   }
 
-  #ifdef UART_DEV
-  UART_CLK_EN();
+  #ifdef UART_ID
+  UARTn_CLK_ENABLE();
   HAL_UART_Init(&UartHandle);
+  HAL_UARTEx_EnableFifoMode(&UartHandle);
   #endif
 
   // USB Pins TODO double check USB clock and pin setup
@@ -171,32 +217,51 @@ uint32_t board_button_read(void) {
 
 size_t board_get_unique_id(uint8_t id[], size_t max_len) {
   (void) max_len;
-  volatile uint32_t* stm32_uuid = (volatile uint32_t*) UID_BASE;
   uint32_t* id32 = (uint32_t*) (uintptr_t) id;
   uint8_t const len = 12;
 
-  id32[0] = stm32_uuid[0];
-  id32[1] = stm32_uuid[1];
-  id32[2] = stm32_uuid[2];
+  id32[0] = cached_uid[0];
+  id32[1] = cached_uid[1];
+  id32[2] = cached_uid[2];
 
   return len;
 }
 
 int board_uart_read(uint8_t* buf, int len) {
-  (void) buf;
-  (void) len;
+#ifdef UART_ID
+  int count = 0;
+  while (count < len) {
+    if (__HAL_UART_GET_FLAG(&UartHandle, UART_FLAG_RXNE)) {
+      buf[count] = (uint8_t) UartHandle.Instance->RDR;
+      count++;
+    } else {
+      break;
+    }
+  }
+  return count;
+#else
+  (void) buf; (void) len;
   return 0;
+#endif
 }
 
 int board_uart_write(void const* buf, int len) {
-  #ifdef UART_DEV
-  HAL_UART_Transmit(&UartHandle, (uint8_t*) (uintptr_t) buf, len, 0xffff);
-  return len;
-  #else
-  (void) buf;
-  (void) len;
-  return 0;
-  #endif
+#ifdef UART_ID
+  const uint8_t *p = (const uint8_t *) buf;
+  int count = 0;
+  while (count < len) {
+    if (__HAL_UART_GET_FLAG(&UartHandle, UART_FLAG_TXE)) {
+      UartHandle.Instance->TDR = p[count];
+      count++;
+    } else {
+      break;
+    }
+  }
+  return count;
+#else
+  (void) buf; (void) len;
+  return -1;
+#endif
 }
 
 #if CFG_TUSB_OS == OPT_OS_NONE
@@ -207,7 +272,7 @@ void SysTick_Handler(void) {
   HAL_IncTick();
 }
 
-uint32_t board_millis(void) {
+uint32_t tusb_time_millis_api(void) {
   return system_ticks;
 }
 

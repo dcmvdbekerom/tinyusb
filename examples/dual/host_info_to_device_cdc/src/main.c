@@ -106,10 +106,6 @@ static void usb_device_init(void) {
     .speed = TUSB_SPEED_AUTO
   };
   tusb_init(BOARD_TUD_RHPORT, &dev_init);
-  tud_cdc_configure_t cdc_cfg = TUD_CDC_CONFIGURE_DEFAULT();
-  cdc_cfg.tx_persistent       = true;
-  cdc_cfg.tx_overwritabe_if_not_connected = false;
-  tud_cdc_configure(&cdc_cfg);
   board_init_after_tusb();
 }
 
@@ -134,7 +130,7 @@ static void main_task(void* param) {
     led_blinking_task();
 
     // preempted RTOS run device/host stack in its own task
-#if CFG_TUSB_OS == OPT_OS_NONE || CFG_TUSB_OS == OPT_OS_PICO
+#if CFG_TUSB_OS_HAS_SCHEDULER == 0
     tud_task(); // tinyusb device task
     tuh_task(); // tinyusb host task
 #endif
@@ -144,7 +140,7 @@ static void main_task(void* param) {
 int main(void) {
   board_init();
 
-#if CFG_TUSB_OS == OPT_OS_NONE || CFG_TUSB_OS == OPT_OS_PICO
+#if CFG_TUSB_OS_HAS_SCHEDULER == 0
   printf("TinyUSB Host Information -> Device CDC Example\r\n");
 
   usb_device_init();
@@ -160,7 +156,7 @@ int main(void) {
   return 0;
 }
 
-#if CFG_TUSB_OS != OPT_OS_NONE && CFG_TUSB_OS != OPT_OS_PICO
+#if CFG_TUSB_OS_HAS_SCHEDULER
 // USB Device Driver task for RTOS
 static void usb_device_task(void *param) {
   (void) param;
@@ -213,13 +209,13 @@ void cdc_task(void) {
   static uint32_t connected_ms = 0;
 
   if (!tud_cdc_connected()) {
-    connected_ms = board_millis();
+    connected_ms = tusb_time_millis_api();
     return;
   }
 
   // delay a bit otherwise we can outpace host's terminal. Linux will set LineState (DTR) then Line Coding.
   // If we send data before Linux's terminal set Line Coding, it can be ignored --> missing data with hardware test loop
-  if (board_millis() - connected_ms < 100) {
+  if (tusb_time_millis_api() - connected_ms < 100) {
     return; // wait for stable connection
   }
 
@@ -309,7 +305,7 @@ void led_blinking_task(void) {
   static bool led_state = false;
 
   // Blink every interval ms
-  if (board_millis() - start_ms < blink_interval_ms) {
+  if (tusb_time_millis_api() - start_ms < blink_interval_ms) {
     return;// not enough time
   }
   start_ms += blink_interval_ms;

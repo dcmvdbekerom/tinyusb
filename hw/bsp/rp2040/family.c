@@ -153,23 +153,58 @@ static stdio_driver_t stdio_rtt = {
   .in_chars = stdio_rtt_read
 };
 
-void stdio_rtt_init(void) {
+static void stdio_rtt_init(void) {
   stdio_set_driver_enabled(&stdio_rtt, true);
 }
 #endif
 
-//--------------------------------------------------------------------+
-//
-//--------------------------------------------------------------------+
+#if defined(TRACE_ETM) && defined(PICO_RP2350) && PICO_RP2350 == 1
+// ETM trace owns GP1-5 (GP1 = TRACECLK, GP2-5 = TRACEDATA0-3): muxing any of
+// them away - even briefly - gaps the trace clock/data and desyncs the probe.
+#define TRACE_PIN_CONFLICT(pin) ((pin) >= 1 && (pin) <= 5)
+// board_init() muxes UART_TX_PIN/UART_RX_PIN, which are defined whenever UART_DEV is
+#ifdef UART_DEV
+  #if TRACE_PIN_CONFLICT(UART_TX_PIN) || TRACE_PIN_CONFLICT(UART_RX_PIN)
+  #error "TRACE_ETM: UART TX/RX sits on a trace pin (GP1-5) - route the console elsewhere (pico2_etm_trace uses GP12/13)"
+  #endif
+#endif
+// stdio_init_all() muxes the sdk defaults even when the BSP console is elsewhere
+#if defined(LIB_PICO_STDIO_UART) && defined(PICO_DEFAULT_UART_TX_PIN) && \
+    (TRACE_PIN_CONFLICT(PICO_DEFAULT_UART_TX_PIN) || TRACE_PIN_CONFLICT(PICO_DEFAULT_UART_RX_PIN))
+  #error "TRACE_ETM: pico-sdk default UART (stdio_init_all) sits on a trace pin (GP1-5)"
+#endif
+#if defined(PICO_DEFAULT_I2C_SDA_PIN) && (TRACE_PIN_CONFLICT(PICO_DEFAULT_I2C_SDA_PIN) || TRACE_PIN_CONFLICT(PICO_DEFAULT_I2C_SCL_PIN))
+  // #pragma message, not #warning: examples build with -Werror, and this is
+  // only a hazard if the app actually uses i2c_default
+  #pragma message("TRACE_ETM: default I2C SDA/SCL sits on a trace pin (GP1-5) - using i2c_default will corrupt the trace stream (pico2_etm_trace routes I2C to GP8/9)")
+#endif
+
+// A debugger session leaves a core halted (Ozone captures halt at the end,
+// openocd halts both cores to flash), and TIMER's reset default pauses the
+// us-timer whenever EITHER core is debug-halted - J-Link's RP2350 script does
+// NOT clear it (verified: DBGPAUSE still reads 0x7, TIMERAWL frozen while
+// halted). tusb_time_millis_api()/sleep_ms() then spin forever and the board
+// looks dead, so free the timer for trace builds, which always run under a
+// probe.
+static void trace_etm_init(void) {
+  *(volatile uint32_t*) 0x400B002Cu = 0; // TIMER0 DBGPAUSE
+  *(volatile uint32_t*) 0x400B802Cu = 0; // TIMER1 DBGPAUSE
+}
+#else
+  #define trace_etm_init()
+#endif
+
 void board_init(void)
 {
+  trace_etm_init();
+
 #if (CFG_TUH_ENABLED && CFG_TUH_RPI_PIO_USB) || (CFG_TUD_ENABLED && CFG_TUD_RPI_PIO_USB)
-  // Set the system clock to a multiple of 12mhz for bit-banging USB with pico-usb
-  set_sys_clock_khz(120000, true);
-  // set_sys_clock_khz(180000, true);
-  // set_sys_clock_khz(192000, true);
-  // set_sys_clock_khz(240000, true);
-  // set_sys_clock_khz(264000, true);
+  // rp2350 runs the pico-sdk stock 150 MHz (a runtime switch also truncates ETM
+  // capture). rp2040 keeps 120 MHz: soak-tested — the stock 125 MHz collapses
+  // PIO-USB bulk-OUT (device NAKs ~600:1, wire-measured, zero CRC errors).
+  #if !(defined(PICO_RP2350) && PICO_RP2350 == 1)
+  set_sys_clock_khz(120000, true); // rp2040 default is 125Mhz
+  #endif
 
 #ifdef PICO_DEFAULT_PIO_USB_VBUSEN_PIN
   gpio_init(PICO_DEFAULT_PIO_USB_VBUSEN_PIN);
@@ -195,8 +230,8 @@ void board_init(void)
 #endif
 
 #ifdef UART_DEV
-  bi_decl(bi_2pins_with_func(UART_TX_PIN, UART_RX_PIN, GPIO_FUNC_UART));
   uart_inst = uart_get_instance(UART_DEV);
+  bi_decl(bi_2pins_with_func(UART_TX_PIN, UART_RX_PIN, GPIO_FUNC_UART));
   stdio_uart_init_full(uart_inst, CFG_BOARD_UART_BAUDRATE, UART_TX_PIN, UART_RX_PIN);
 #endif
 
@@ -269,14 +304,16 @@ int board_uart_read(uint8_t *buf, int len) {
 
 int board_uart_write(void const *buf, int len) {
 #ifdef UART_DEV
-  char const *bufch = (char const *) buf;
-  for ( int i = 0; i < len; i++ ) {
-    uart_putc(uart_inst, bufch[i]);
+  const uint8_t *p = (const uint8_t *) buf;
+  int count = 0;
+  while (count < len && uart_is_writable(uart_inst)) {
+    uart_putc_raw(uart_inst, p[count]);
+    count++;
   }
-  return len;
+  return count;
 #else
   (void) buf; (void) len;
-  return 0;
+  return -1;
 #endif
 }
 
@@ -284,13 +321,27 @@ int board_getchar(void) {
   return getchar_timeout_us(0);
 }
 
-void board_putchar(int c) {
-  stdio_putchar(c);
+int board_putchar(int c) {
+  return stdio_putchar(c);
 }
 
 void board_init_after_tusb(void) {
   // nothing to do
 }
+
+//--------------------------------------------------------------------+
+// FreeRTOS hooks
+//--------------------------------------------------------------------+
+#if CFG_TUSB_OS == OPT_OS_FREERTOS
+#include "FreeRTOS.h"
+#include "task.h"
+
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
+  (void) xTask;
+  (void) pcTaskName;
+  panic("FreeRTOS stack overflow: %s", pcTaskName);
+}
+#endif
 
 void board_reset_to_bootloader(void) {
   // not implemented
@@ -370,7 +421,7 @@ bool tuh_max3421_spi_xfer_api(uint8_t rhport, uint8_t const* tx_buf, uint8_t* rx
   }else if (rx_buf == NULL) {
     ret = spi_write_blocking(MAX3421_SPI, tx_buf, xfer_bytes);
   }else {
-    ret = spi_write_read_blocking(spi0, tx_buf, rx_buf, xfer_bytes);
+    ret = spi_write_read_blocking(MAX3421_SPI, tx_buf, rx_buf, xfer_bytes);
   }
 
   return ret == (int) xfer_bytes;

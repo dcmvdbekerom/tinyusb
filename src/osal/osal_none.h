@@ -1,25 +1,6 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2019 Ha Thach (tinyusb.org)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-FileCopyrightText: Copyright (c) 2019 Ha Thach (tinyusb.org)
+ * SPDX-License-Identifier: MIT
  *
  * This file is part of the TinyUSB stack.
  */
@@ -30,6 +11,24 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// osal_time_millis() is not provided, tusb_time_millis_api() must be implemented by user application
+
+//--------------------------------------------------------------------+
+// TASK API
+//--------------------------------------------------------------------+
+// Bare-metal single context: return a non-NULL sentinel so equality compares true.
+typedef void* osal_task_handle_t;
+
+TU_ATTR_ALWAYS_INLINE static inline osal_task_handle_t osal_task_get_current_handle(void) {
+  return (osal_task_handle_t) 1;
+}
+
+// Bare-metal has no scheduler to yield to; this is dead code in practice because
+// callers gate it on running outside the host task, which can't happen here.
+TU_ATTR_ALWAYS_INLINE static inline void osal_task_delay(uint32_t msec) {
+  (void) msec;
+}
 
 //--------------------------------------------------------------------+
 // Spinlock API
@@ -49,6 +48,10 @@ typedef struct {
   osal_spinlock_t _name = { .interrupt_set = _int_set, .nested_count = 0 }
 
 TU_ATTR_ALWAYS_INLINE static inline void osal_spin_init(osal_spinlock_t *ctx) {
+  (void) ctx;
+}
+
+TU_ATTR_ALWAYS_INLINE static inline void osal_spin_deinit(osal_spinlock_t *ctx) {
   (void) ctx;
 }
 
@@ -184,7 +187,7 @@ TU_ATTR_ALWAYS_INLINE static inline bool osal_queue_receive(osal_queue_t qhdl, v
   (void) msec; // not used, always behave as msec = 0
 
   qhdl->interrupt_set(false);
-  const bool success = tu_fifo_read_n(&qhdl->ff, data, qhdl->item_size);
+  const bool success = (tu_fifo_read_n(&qhdl->ff, data, qhdl->item_size) > 0);
   qhdl->interrupt_set(true);
 
   return success;
@@ -195,7 +198,7 @@ TU_ATTR_ALWAYS_INLINE static inline bool osal_queue_send(osal_queue_t qhdl, void
     qhdl->interrupt_set(false);
   }
 
-  const bool success = tu_fifo_write_n(&qhdl->ff, data, qhdl->item_size);
+  const bool success = (tu_fifo_write_n(&qhdl->ff, data, qhdl->item_size) > 0);
 
   if (!in_isr) {
     qhdl->interrupt_set(true);

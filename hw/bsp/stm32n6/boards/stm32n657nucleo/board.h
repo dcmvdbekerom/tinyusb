@@ -41,8 +41,7 @@ extern "C" {
 #include "stm32n6xx_ll_system.h"
 #include "tcpp0203.h"
 
-#define UART_DEV USART1
-#define UART_CLK_EN __HAL_RCC_USART1_CLK_ENABLE
+#define UART_ID  1
 
 // VBUS Sense detection
 #define OTG_FS_VBUS_SENSE 0
@@ -153,7 +152,13 @@ static void SystemClock_Config(void) {
                                  RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2 | RCC_CLOCKTYPE_PCLK4 | RCC_CLOCKTYPE_PCLK5);
   RCC_ClkInitStruct.CPUCLKSource = RCC_CPUCLKSOURCE_IC1;
   RCC_ClkInitStruct.IC1Selection.ClockSelection = RCC_ICCLKSOURCE_PLL1;
+#ifdef TRACE_ETM
+  // 300 MHz CPU -> 37.5 MHz TPIU clock (fixed cpu/8): at 600 MHz the trace
+  // stream dies with unknown-packet decode errors in the startup burst
+  RCC_ClkInitStruct.IC1Selection.ClockDivider = 4;
+#else
   RCC_ClkInitStruct.IC1Selection.ClockDivider = 2;
+#endif
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_IC2_IC6_IC11;
   RCC_ClkInitStruct.IC2Selection.ClockSelection = RCC_ICCLKSOURCE_PLL1;
   RCC_ClkInitStruct.IC2Selection.ClockDivider = 3;
@@ -240,6 +245,10 @@ int32_t i2c_writereg(uint16_t DevAddr, uint16_t Reg, uint8_t *pData, uint16_t Le
   return 0;
 }
 
+static int32_t i2c_get_tick(void) {
+  return (int32_t) HAL_GetTick();
+}
+
 static inline void board_init2(void) {
   TCPP0203_IO_t io_ctx;
 
@@ -248,6 +257,7 @@ static inline void board_init2(void) {
   io_ctx.DeInit = board_tcpp0203_deinit;
   io_ctx.ReadReg = i2c_readreg;
   io_ctx.WriteReg = i2c_writereg;
+  io_ctx.GetTick = i2c_get_tick;
 
   TU_ASSERT(TCPP0203_RegisterBusIO(&tcpp0203_obj, &io_ctx) == TCPP0203_OK, );
 

@@ -1,26 +1,8 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2020 Reinhard Panhuber, Jerzy Kasenberg
- * Copyright (c) 2023 HiFiPhile
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-FileCopyrightText: Copyright (c) 2020 Reinhard Panhuber, Jerzy Kasenberg
+ * SPDX-FileCopyrightText: Copyright (c) 2023 HiFiPhile (Zixun LI)
+ * SPDX-FileCopyrightText: Copyright (c) 2020 Ha Thach (tinyusb.org)
+ * SPDX-License-Identifier: MIT
  *
  * This file is part of the TinyUSB stack.
  */
@@ -147,7 +129,9 @@ tu_static CFG_TUD_MEM_SECTION struct {
 #endif// CFG_TUD_AUDIO_ENABLE_EP_OUT && !CFG_TUD_EDPT_DEDICATED_HWFIFO
 
 // Control buffer
-CFG_TUD_MEM_ALIGN uint8_t ctrl_buf[CFG_TUD_AUDIO_CTRL_BUF_SZ];
+#if CFG_TUD_AUDIO_CTRL_BUF_SZ > CFG_TUD_ENDPOINT0_BUFSIZE
+tu_static CFG_TUD_MEM_ALIGN uint8_t ctrl_buf[CFG_TUD_AUDIO_CTRL_BUF_SZ];
+#endif
 
 // Aligned buffer for feedback EP
 #if CFG_TUD_AUDIO_ENABLE_EP_OUT && CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP
@@ -421,6 +405,15 @@ bool tud_audio_n_mounted(uint8_t func_id) {
   audiod_function_t *audio = &_audiod_fct[func_id];
 
   return audio->mounted;
+}
+
+static inline uint8_t* get_ctrl_buffer(void) {
+  // Use EP0 buffer if it is large enough, otherwise use dedicated buffer
+  #if CFG_TUD_AUDIO_CTRL_BUF_SZ > CFG_TUD_ENDPOINT0_BUFSIZE
+  return ctrl_buf;
+  #else
+  return usbd_get_ctrl_buf();
+  #endif
 }
 
 //--------------------------------------------------------------------+
@@ -1168,9 +1161,6 @@ static bool audiod_set_interface(uint8_t rhport, tusb_control_request_t const *p
             is_feedback_ep = (desc_ep->bmAttributes.usage == 1);
           }
 
-          //TODO: We need to set EP non busy since this is not taken care of right now in ep_close() - THIS IS A WORKAROUND!
-          usbd_edpt_clear_stall(rhport, ep_addr);
-
 #if CFG_TUD_AUDIO_ENABLE_EP_IN
           // For data or data with implicit feedback IN EP
           if (tu_edpt_dir(ep_addr) == TUSB_DIR_IN && is_data_ep)
@@ -1296,20 +1286,20 @@ static bool audiod_control_complete(uint8_t rhport, tusb_control_request_t const
           if (tud_audio_n_version(func_id) == 2) {
             uint8_t ctrlSel = TU_U16_HIGH(p_request->wValue);
             if (_audiod_fct[func_id].bclock_id_tx == entityID && ctrlSel == AUDIO20_CS_CTRL_SAM_FREQ && p_request->bRequest == AUDIO20_CS_REQ_CUR) {
-              _audiod_fct[func_id].sample_rate_tx = tu_unaligned_read32(ctrl_buf);
+              _audiod_fct[func_id].sample_rate_tx = tu_unaligned_read32(get_ctrl_buffer());
               audiod_calc_tx_packet_sz(&_audiod_fct[func_id]);
             }
           }
 #endif
 
           // Invoke callback
-          return tud_audio_set_req_entity_cb(rhport, p_request, ctrl_buf);
+          return tud_audio_set_req_entity_cb(rhport, p_request, get_ctrl_buffer());
         } else {
           // Find index of audio driver structure and verify interface really exists
           TU_VERIFY(audiod_verify_itf_exists(itf, &func_id));
 
           // Invoke callback
-          return tud_audio_set_req_itf_cb(rhport, p_request, ctrl_buf);
+          return tud_audio_set_req_itf_cb(rhport, p_request, get_ctrl_buffer());
         }
       } break;
 
@@ -1324,7 +1314,7 @@ static bool audiod_control_complete(uint8_t rhport, tusb_control_request_t const
             if (_audiod_fct[func_id].ep_in == ep) {
               uint8_t ctrlSel = TU_U16_HIGH(p_request->wValue);
               if (ctrlSel == AUDIO10_EP_CTRL_SAMPLING_FREQ && p_request->bRequest == AUDIO10_CS_REQ_SET_CUR) {
-                _audiod_fct[func_id].sample_rate_tx = tu_unaligned_read32(ctrl_buf) & 0x00FFFFFF;
+                _audiod_fct[func_id].sample_rate_tx = tu_unaligned_read32(get_ctrl_buffer()) & 0x00FFFFFF;
                 audiod_calc_tx_packet_sz(&_audiod_fct[func_id]);
               }
             }
@@ -1332,7 +1322,7 @@ static bool audiod_control_complete(uint8_t rhport, tusb_control_request_t const
 #endif
 
           // Invoke callback
-          bool ret = tud_audio_set_req_ep_cb(rhport, p_request, ctrl_buf);
+          bool ret = tud_audio_set_req_ep_cb(rhport, p_request, get_ctrl_buffer());
 
 #if CFG_TUD_AUDIO_ENABLE_EP_OUT && CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP
           if (ret && tud_audio_n_version(func_id) == 1) {
@@ -1429,7 +1419,7 @@ static bool audiod_control_request(uint8_t rhport, tusb_control_request_t const 
     }
 
     // If we end here, the received request is a set request - we schedule a receive for the data stage and return true here. We handle the rest later in audiod_control_complete() once the data stage was finished
-    TU_VERIFY(tud_control_xfer(rhport, p_request, ctrl_buf, sizeof(ctrl_buf)));
+    TU_VERIFY(tud_control_xfer(rhport, p_request, get_ctrl_buffer(), CFG_TUD_AUDIO_CTRL_BUF_SZ));
     return true;
   }
 
@@ -1695,11 +1685,8 @@ bool tud_audio_buffer_and_schedule_control_xfer(uint8_t rhport, tusb_control_req
       return false;
   }
 
-  // Crop length
-  if (len > sizeof(ctrl_buf)) len = sizeof(ctrl_buf);
-
   // Copy into buffer
-  TU_VERIFY(0 == tu_memcpy_s(ctrl_buf, sizeof(ctrl_buf), data, (size_t) len));
+  TU_VERIFY(0 == tu_memcpy_s(get_ctrl_buffer(), CFG_TUD_AUDIO_CTRL_BUF_SZ, data, (size_t) len));
 
 #if CFG_TUD_AUDIO_ENABLE_EP_IN && CFG_TUD_AUDIO_EP_IN_FLOW_CONTROL
   if (tud_audio_n_version(func_id) == 2) {
@@ -1708,7 +1695,7 @@ bool tud_audio_buffer_and_schedule_control_xfer(uint8_t rhport, tusb_control_req
       uint8_t entityID = TU_U16_HIGH(p_request->wIndex);
       uint8_t ctrlSel = TU_U16_HIGH(p_request->wValue);
       if (_audiod_fct[func_id].bclock_id_tx == entityID && ctrlSel == AUDIO20_CS_CTRL_SAM_FREQ && p_request->bRequest == AUDIO20_CS_REQ_CUR) {
-        _audiod_fct[func_id].sample_rate_tx = tu_unaligned_read32(ctrl_buf);
+        _audiod_fct[func_id].sample_rate_tx = tu_unaligned_read32(get_ctrl_buffer());
         audiod_calc_tx_packet_sz(&_audiod_fct[func_id]);
       }
     }
@@ -1716,7 +1703,7 @@ bool tud_audio_buffer_and_schedule_control_xfer(uint8_t rhport, tusb_control_req
 #endif
 
   // Schedule transmit
-  return tud_control_xfer(rhport, p_request, ctrl_buf, len);
+  return tud_control_xfer(rhport, p_request, get_ctrl_buffer(), len);
 }
 
 // Verify an entity with the given ID exists and returns also the corresponding driver index
@@ -1854,7 +1841,7 @@ static bool audiod_calc_tx_packet_sz(audiod_function_t *audio) {
 
 static uint16_t audiod_tx_packet_size(const uint16_t *nominal_size, uint16_t data_count, uint16_t fifo_depth, uint16_t fifo_threshold, uint16_t max_depth) {
   // Flow control need a FIFO size of at least 4*Navg
-  if (nominal_size[1] && nominal_size[1] <= fifo_depth * 4) {
+  if (nominal_size[1] && nominal_size[1] * 4 <= fifo_depth) {
     // Use blackout to prioritize normal size packet
     static int ctrl_blackout = 0;
     uint16_t packet_size;

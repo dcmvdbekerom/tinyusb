@@ -168,7 +168,7 @@ static void io_task(void *params) {
   while (1) {
     if (xQueueReceive(io_queue, &io_ops, portMAX_DELAY)) {
       uint8_t* addr = (uint8_t*) (uintptr_t) (msc_disk[io_ops.lba] + io_ops.offset);
-      int32_t nbytes = io_ops.bufsize;
+      int32_t nbytes = (int32_t) io_ops.bufsize;
       if (io_ops.is_read) {
         memcpy(io_ops.buffer, addr, io_ops.bufsize);
       } else {
@@ -324,20 +324,17 @@ int32_t tud_msc_write10_cb(uint8_t lun, uint32_t lba, uint32_t offset, uint8_t* 
 // - READ_CAPACITY10, READ_FORMAT_CAPACITY, INQUIRY, MODE_SENSE6, REQUEST_SENSE
 // - READ10 and WRITE10 has their own callbacks
 int32_t tud_msc_scsi_cb (uint8_t lun, uint8_t const scsi_cmd[16], void* buffer, uint16_t bufsize) {
-  // read10 & write10 has their own callback and MUST not be handled here
+  (void) lun;
+  (void) scsi_cmd;
   (void) buffer;
   (void) bufsize;
 
-  switch (scsi_cmd[0]) {
-    default:
-      // Set Sense = Invalid Command Operation
-      tud_msc_set_sense(lun, SCSI_SENSE_ILLEGAL_REQUEST, 0x20, 0x00);
+  // currently no other commands are supported
 
-      // negative means error -> tinyusb could stall and/or response with failed status
-      return -1;
-  }
+  // Set Sense = Invalid Command Operation
+  (void) tud_msc_set_sense(lun, SCSI_SENSE_ILLEGAL_REQUEST, 0x20, 0x00);
 
-  return -1;
+  return -1; // stall/failed command request;
 }
 
 #endif

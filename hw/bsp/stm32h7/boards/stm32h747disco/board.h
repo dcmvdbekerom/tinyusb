@@ -25,8 +25,8 @@
  */
 
 /* metadata:
-   name: STM32 H745 Discovery
-   url: https://www.st.com/en/evaluation-tools/stm32h745i-disco.html
+   name: STM32 H747 Discovery
+   url: https://www.st.com/en/evaluation-tools/stm32h747i-disco.html
 */
 
 #ifndef BOARD_H_
@@ -37,8 +37,7 @@
 #endif
 
 // UART
-#define UART_DEV              USART3
-#define UART_CLK_EN           __HAL_RCC_USART3_CLK_ENABLE
+#define UART_ID               3
 
 // VBUS Sense detection
 #define OTG_FS_VBUS_SENSE     1
@@ -63,7 +62,7 @@ static board_pindef_t board_pindef[] = {
   },
   { // Button
     .port = GPIOC,
-    .pin_init = { .Pin = GPIO_PIN_13, .Mode = GPIO_MODE_INPUT, .Pull = GPIO_PULLUP, .Speed = GPIO_SPEED_HIGH, .Alternate = 0 },
+    .pin_init = { .Pin = GPIO_PIN_13, .Mode = GPIO_MODE_INPUT, .Pull = GPIO_PULLDOWN, .Speed = GPIO_SPEED_HIGH, .Alternate = 0 },
     .active_state = 1
   },
   { // UART TX

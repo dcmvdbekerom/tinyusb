@@ -27,15 +27,8 @@
 #include "tusb.h"
 #include "usb_descriptors.h"
 
-/* A combination of interfaces must have a unique product id, since PC will save device driver after the first plug.
- * Same VID/PID with different interface e.g MSC (first), then CDC (later) will possibly cause system error on PC.
- *
- * Auto ProductID layout's Bitmap:
- *   [MSB]       MIDI | HID | MSC | CDC          [LSB]
- */
-#define PID_MAP(itf, n)  ((CFG_TUD_##itf) ? (1 << (n)) : 0)
-#define USB_PID           (0x4000 | PID_MAP(CDC, 0) | PID_MAP(MSC, 1) | PID_MAP(HID, 2) | \
-                           PID_MAP(MIDI, 3) | PID_MAP(VENDOR, 4) )
+// Unique PID per example: guarantees re-enumeration on re-flash and a fresh host driver match.
+#define USB_PID           0x401f
 
 //--------------------------------------------------------------------+
 // Device Descriptors
@@ -104,15 +97,25 @@ enum
   #define EPNUM_VENDOR_OUT  0x05
   #define EPNUM_VENDOR_IN   0x84
 
-#elif defined(TUD_ENDPOINT_ONE_DIRECTION_ONLY)
+#elif CFG_TUD_ENDPOINT_ONE_DIRECTION_ONLY
   // MCUs that don't support a same endpoint number with different direction IN and OUT defined in tusb_mcu.h
   //    e.g EP1 OUT & EP1 IN cannot exist together
-  #define EPNUM_CDC_NOTIF   0x81
-  #define EPNUM_CDC_OUT     0x02
-  #define EPNUM_CDC_IN      0x83
+  #if TU_CHECK_MCU(OPT_MCU_MAX32650, OPT_MCU_MAX32666, OPT_MCU_MAX32690, OPT_MCU_MAX78002)
+    // Put bulk on EP>=8 so the 2048/4096-byte FIFOs can back double packet buffering
+    #define EPNUM_CDC_NOTIF   0x81
+    #define EPNUM_CDC_OUT     0x08
+    #define EPNUM_CDC_IN      0x89
 
-  #define EPNUM_VENDOR_OUT  0x04
-  #define EPNUM_VENDOR_IN   0x85
+    #define EPNUM_VENDOR_OUT  0x0A
+    #define EPNUM_VENDOR_IN   0x8B
+  #else
+    #define EPNUM_CDC_NOTIF   0x81
+    #define EPNUM_CDC_OUT     0x02
+    #define EPNUM_CDC_IN      0x83
+
+    #define EPNUM_VENDOR_OUT  0x04
+    #define EPNUM_VENDOR_IN   0x85
+  #endif
 
 #else
   #define EPNUM_CDC_NOTIF   0x81

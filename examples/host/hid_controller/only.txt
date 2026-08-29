@@ -1,5 +1,5 @@
 family:hpmicro
-family:samd21
+family:samd2x_l2x
 family:samd5x_e5x
 mcu:CH32V20X
 mcu:KINETIS_KL
@@ -8,6 +8,8 @@ mcu:LPC177X_8X
 mcu:LPC18XX
 mcu:LPC40XX
 mcu:LPC43XX
+mcu:LPC54
+mcu:LPC55
 mcu:MAX3421
 mcu:MIMXRT10XX
 mcu:MIMXRT11XX

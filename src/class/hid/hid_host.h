@@ -1,25 +1,6 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2019 Ha Thach (tinyusb.org)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-FileCopyrightText: Copyright (c) 2019 Ha Thach (tinyusb.org)
+ * SPDX-License-Identifier: MIT
  *
  * This file is part of the TinyUSB stack.
  */
@@ -36,7 +17,6 @@ extern "C" {
 //--------------------------------------------------------------------+
 // Class Driver Configuration
 //--------------------------------------------------------------------+
-
 // TODO Highspeed interrupt can be up to 512 bytes
 #ifndef CFG_TUH_HID_EPIN_BUFSIZE
   #define CFG_TUH_HID_EPIN_BUFSIZE 64
@@ -46,7 +26,13 @@ extern "C" {
   #define CFG_TUH_HID_EPOUT_BUFSIZE 64
 #endif
 
+#ifndef CFG_TUH_HID_SET_PROTOCOL_ON_ENUM
+  #define CFG_TUH_HID_SET_PROTOCOL_ON_ENUM 1
+#endif
 
+//--------------------------------------------------------------------+
+// Interface API
+//--------------------------------------------------------------------+
 typedef struct {
   uint8_t  report_id;
   uint8_t  usage;
@@ -56,10 +42,6 @@ typedef struct {
   //  uint8_t in_len;      // length of IN report
   //  uint8_t out_len;     // length of OUT report
 } tuh_hid_report_info_t;
-
-//--------------------------------------------------------------------+
-// Interface API
-//--------------------------------------------------------------------+
 
 // Get the total number of mounted HID interfaces of a device
 uint8_t tuh_hid_itf_get_count(uint8_t dev_addr);
@@ -139,7 +121,7 @@ bool tuh_hid_send_ready(uint8_t dev_addr, uint8_t idx);
 bool tuh_hid_send_report(uint8_t dev_addr, uint8_t idx, uint8_t report_id, const void *report, uint16_t len);
 
 //--------------------------------------------------------------------+
-// Callbacks (Weak is optional)
+// Callbacks (optional)
 //--------------------------------------------------------------------+
 
 // Invoked when device with hid interface is mounted

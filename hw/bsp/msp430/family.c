@@ -102,10 +102,10 @@ static void SystemClock_Config(void)
 
   // VUSB enabled automatically.
   // Wait two milliseconds to stabilize, per manual recommendation.
-  uint32_t ms_elapsed = board_millis();
+  uint32_t ms_elapsed = tusb_time_millis_api();
   do
   {
-    while((board_millis() - ms_elapsed) < 2);
+    while((tusb_time_millis_api() - ms_elapsed) < 2);
   }while(!(USBPWRCTL & USBBGVBV));
 
   // USB uses XT2 (4 MHz) directly. Enable the PLL.
@@ -113,11 +113,11 @@ static void SystemClock_Config(void)
   USBPLLCTL |= (UPFDEN | UPLLEN);
 
   // Wait until PLL locks. Check every 2ms, per manual.
-  ms_elapsed = board_millis();
+  ms_elapsed = tusb_time_millis_api();
   do
   {
     USBPLLIR &= ~USBOOLIFG;
-    while((board_millis() - ms_elapsed) < 2);
+    while((tusb_time_millis_api() - ms_elapsed) < 2);
   }while(USBPLLIR & USBOOLIFG);
 
   USBKEYPID = 0;
@@ -186,16 +186,18 @@ int board_uart_read(uint8_t * buf, int len)
 
 int board_uart_write(void const * buf, int len)
 {
-  const char * char_buf = (const char *) buf;
-
-  for(int i = 0; i < len; i++)
+  uint8_t const *p = (uint8_t const *) buf;
+  int count = 0;
+  while (count < len)
   {
-    // Wait until TX buffer is empty (cleared by writing buffer).
-    while(!(UCA1IFG & UCTXIFG));
-    UCA1TXBUF = char_buf[i];
+    if (UCA1IFG & UCTXIFG) {
+      UCA1TXBUF = p[count];
+      count++;
+    } else {
+      break;
+    }
   }
-
-  return len;
+  return count;
 }
 
 #if CFG_TUSB_OS  == OPT_OS_NONE
@@ -207,7 +209,7 @@ void TIMER0_A0_ISR (void) {
   // TAxCCR0 CCIFG resets itself as soon as interrupt is invoked.
 }
 
-uint32_t board_millis(void)
+uint32_t tusb_time_millis_api(void)
 {
   uint32_t systick_mirror;
 

@@ -1,25 +1,6 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2019 Ha Thach (tinyusb.org)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-FileCopyrightText: Copyright (c) 2019 Ha Thach (tinyusb.org)
+ * SPDX-License-Identifier: MIT
  *
  * This file is part of the TinyUSB stack.
  */
@@ -100,12 +81,14 @@ typedef enum {
 } tusb_xfer_type_t;
 
 typedef enum {
-  TUSB_DIR_OUT = 0,
-  TUSB_DIR_IN  = 1,
-
-  TUSB_EPNUM_MASK = 0x0F,
-  TUSB_DIR_IN_MASK = 0x80
+  TUSB_DIR_OUT = 0u,
+  TUSB_DIR_IN  = 1u,
 } tusb_dir_t;
+
+enum {
+  TUSB_EPNUM_MASK  = 0x0F,
+  TUSB_DIR_IN_MASK = 0x80
+};
 
 enum {
   TUSB_EPSIZE_BULK_FS = 64,
@@ -114,6 +97,10 @@ enum {
   TUSB_EPSIZE_ISO_FS_MAX = 1023,
   TUSB_EPSIZE_ISO_HS_MAX = 1024,
 };
+
+// Endpoint Bulk size depending on host/device max speed
+#define TUD_EPSIZE_BULK_MAX   (TUD_OPT_HIGH_SPEED ? 512 : 64)
+#define TUH_EPSIZE_BULK_MAX   (TUH_OPT_HIGH_SPEED ? 512 : 64)
 
 /// Isochronous Endpoint Attributes
 typedef enum {
@@ -257,7 +244,7 @@ enum {
   TUSB_DESC_CONFIG_ATT_SELF_POWERED  = 1 << 6,
 };
 
-#define TUSB_DESC_CONFIG_POWER_MA(x)  ((x)/2)
+#define TUSB_DESC_CONFIG_POWER_MA(x)  ((uint8_t)TU_MIN((x)/2, UINT8_MAX))
 
 // USB 2.0 Spec Table 9-7: Test Mode Selectors
 typedef enum {
@@ -276,6 +263,7 @@ typedef enum {
   XFER_RESULT_FAILED,
   XFER_RESULT_STALLED,
   XFER_RESULT_TIMEOUT,
+  XFER_RESULT_ABORTED,
   XFER_RESULT_INVALID
 } xfer_result_t;
 
@@ -315,6 +303,12 @@ enum {
   TUSB_INDEX_INVALID_8 = 0xFF
 };
 
+enum {
+ TU_EP0_OUT = 0x00,
+ TU_EP0_IN = 0x80
+};
+
+
 //--------------------------------------------------------------------+
 //
 //--------------------------------------------------------------------+
@@ -341,12 +335,10 @@ typedef struct TU_ATTR_PACKED {
   uint8_t  bLength            ; ///< Size of this descriptor in bytes.
   uint8_t  bDescriptorType    ; ///< DEVICE Descriptor Type.
   uint16_t bcdUSB             ; ///< BUSB Specification Release Number in Binary-Coded Decimal (i.e., 2.10 is 210H).
-
   uint8_t  bDeviceClass       ; ///< Class code (assigned by the USB-IF).
   uint8_t  bDeviceSubClass    ; ///< Subclass code (assigned by the USB-IF).
   uint8_t  bDeviceProtocol    ; ///< Protocol code (assigned by the USB-IF).
   uint8_t  bMaxPacketSize0    ; ///< Maximum packet size for endpoint zero (only 8, 16, 32, or 64 are valid). For HS devices is fixed to 64.
-
   uint16_t idVendor           ; ///< Vendor ID (assigned by the USB-IF).
   uint16_t idProduct          ; ///< Product ID (assigned by the manufacturer).
   uint16_t bcdDevice          ; ///< Device release number in binary-coded decimal.
@@ -407,10 +399,19 @@ typedef struct TU_ATTR_PACKED {
   uint8_t  bEndpointAddress ; // The address of the endpoint
 
   struct TU_ATTR_PACKED {
+#if (TU_BITFIELD_ORDER == TU_BITFIELD_LE)
     uint8_t xfer  : 2;        // Control, ISO, Bulk, Interrupt
     uint8_t sync  : 2;        // None, Asynchronous, Adaptive, Synchronous
     uint8_t usage : 2;        // Data, Feedback, Implicit feedback
     uint8_t       : 2;
+#elif (TU_BITFIELD_ORDER == TU_BITFIELD_BE)
+    uint8_t       : 2;
+    uint8_t usage : 2;
+    uint8_t sync  : 2;
+    uint8_t xfer  : 2;
+#else
+  #error "Please define TU_BITFIELD_ORDER as TU_BITFIELD_LE or TU_BITFIELD_BE"
+#endif
   } bmAttributes;
 
   uint16_t wMaxPacketSize   ; // Bit 10..0 : max packet size, bit 12..11 additional transaction per highspeed micro-frame
@@ -520,9 +521,17 @@ typedef struct TU_ATTR_PACKED {
 typedef struct TU_ATTR_PACKED {
   union {
     struct TU_ATTR_PACKED {
+#if (TU_BITFIELD_ORDER == TU_BITFIELD_LE)
       uint8_t recipient :  5; ///< Recipient type tusb_request_recipient_t.
       uint8_t type      :  2; ///< Request type tusb_request_type_t.
       uint8_t direction :  1; ///< Direction type. tusb_dir_t
+#elif (TU_BITFIELD_ORDER == TU_BITFIELD_BE)
+      uint8_t direction :  1; ///< Direction type. tusb_dir_t
+      uint8_t type      :  2; ///< Request type tusb_request_type_t.
+      uint8_t recipient :  5; ///< Recipient type tusb_request_recipient_t.
+#else
+  #error "Please define TU_BITFIELD_ORDER as TU_BITFIELD_LE or TU_BITFIELD_BE"
+#endif
     } bmRequestType_bit;
 
     uint8_t bmRequestType;

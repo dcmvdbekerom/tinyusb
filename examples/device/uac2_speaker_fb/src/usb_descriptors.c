@@ -28,15 +28,8 @@
 #include "usb_descriptors.h"
 #include "common_types.h"
 
-/* A combination of interfaces must have a unique product id, since PC will save device driver after the first plug.
- * Same VID/PID with different interface e.g MSC (first), then CDC (later) will possibly cause system error on PC.
- *
- * Auto ProductID layout's Bitmap:
- *   [MSB]     AUDIO | MIDI | HID | MSC | CDC          [LSB]
- */
-#define PID_MAP(itf, n)  ((CFG_TUD_##itf) ? (1 << (n)) : 0)
-#define USB_PID           (0x4000 | PID_MAP(CDC, 0) | PID_MAP(MSC, 1) | PID_MAP(HID, 2) | \
-    PID_MAP(MIDI, 3) | PID_MAP(AUDIO, 4) | PID_MAP(VENDOR, 5) )
+// Unique PID per example: guarantees re-enumeration on re-flash and a fresh host driver match.
+#define USB_PID           0x401b
 
 //--------------------------------------------------------------------+
 // Device Descriptors
@@ -115,12 +108,19 @@ uint8_t const * tud_hid_descriptor_report_cb(uint8_t itf) {
   #define EPNUM_AUDIO_FB    0x08
   #define EPNUM_DEBUG       0x01
 
-#elif defined(TUD_ENDPOINT_ONE_DIRECTION_ONLY)
+#elif CFG_TUD_ENDPOINT_ONE_DIRECTION_ONLY
   // MCUs that don't support a same endpoint number with different direction IN and OUT defined in tusb_mcu.h
   //    e.g EP1 OUT & EP1 IN cannot exist together
-  #define EPNUM_AUDIO       0x02
-  #define EPNUM_AUDIO_FB    0x01
-  #define EPNUM_DEBUG       0x03
+  #if TU_CHECK_MCU(OPT_MCU_MAX32650, OPT_MCU_MAX32666, OPT_MCU_MAX32690, OPT_MCU_MAX78002)
+    // Put audio iso on EP10/11 so the 4096-byte FIFOs can back double packet buffering
+    #define EPNUM_AUDIO       0x0A
+    #define EPNUM_AUDIO_FB    0x0B
+    #define EPNUM_DEBUG       0x01
+  #else
+    #define EPNUM_AUDIO       0x02
+    #define EPNUM_AUDIO_FB    0x01
+    #define EPNUM_DEBUG       0x03
+  #endif
 
 #else
   #define EPNUM_AUDIO       0x01

@@ -21,14 +21,8 @@ endforeach ()
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_custom_target(tinyusb_metrics
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/metrics.py
-  combine -f tinyusb/src -j -o ${CMAKE_BINARY_DIR}/metrics
+  combine -f tinyusb/src -j --by-example -o ${CMAKE_BINARY_DIR}/metrics
   ${MAPJSON_PATTERNS}
   COMMENT "Generating average code size metrics"
   VERBATIM
   )
-
-#add_custom_command(TARGET tinyusb_metrics POST_BUILD
-#  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/metrics.py compare ${TOP}/cmake-build/cmake-build-${BOARD}/metrics.json ${CMAKE_BINARY_DIR}/metrics.json
-#  COMMENT "Generating average code size metrics"
-#  VERBATIM
-#  )

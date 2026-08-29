@@ -1,25 +1,6 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2023 Ha Thach (thach@tinyusb.org)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-FileCopyrightText: Copyright (c) 2023 Ha Thach (tinyusb.org)
+ * SPDX-License-Identifier: MIT
  *
  * This file is part of the TinyUSB stack.
  */
@@ -76,11 +57,33 @@ TU_ATTR_WEAK bool tuc_pd_control_received_cb(uint8_t rhport, pd_header_t const* 
   return false;
 }
 
+TU_ATTR_WEAK void tcd_connect(uint8_t rhport) {
+  (void) rhport;
+}
+
+TU_ATTR_WEAK void tcd_disconnect(uint8_t rhport) {
+  (void) rhport;
+}
+
 //--------------------------------------------------------------------+
 //
 //--------------------------------------------------------------------+
 bool tuc_inited(uint8_t rhport) {
   return _usbc_inited && _port_inited[rhport];
+}
+
+bool tuc_connect(uint8_t rhport) {
+  TU_VERIFY(rhport < TUP_TYPEC_RHPORTS_NUM && tuc_inited(rhport));
+
+  tcd_connect(rhport);
+  return true;
+}
+
+bool tuc_disconnect(uint8_t rhport) {
+  TU_VERIFY(rhport < TUP_TYPEC_RHPORTS_NUM && tuc_inited(rhport));
+
+  tcd_disconnect(rhport);
+  return true;
 }
 
 bool tuc_init(uint8_t rhport, uint32_t port_type) {

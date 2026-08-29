@@ -1,26 +1,6 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2024, hathach (tinyusb.org)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- *
+ * SPDX-FileCopyrightText: Copyright (c) 2024, Ha Thach (tinyusb.org)
+ * SPDX-License-Identifier: MIT
  */
 /** <h2><center>&copy; Copyright (c) 2019 STMicroelectronics.
   * All rights reserved.</center></h2>
@@ -47,7 +27,7 @@ typedef struct
   uint32_t  irqnum;
   uint8_t   ep_count;
   uint8_t   ep_in_count;
-  uint32_t  ep_fifo_size;
+  uint16_t  otg_dfifo_depth; // total SPRAM in 32-bit words = ghwcfg3.dfifo_depth + EP_LOC_CNT
 }dwc2_controller_t;
 
 // DWC OTG HW Release versions
@@ -63,6 +43,7 @@ typedef struct
 #define DWC2_CORE_REV_4_00a   0x4f54400a
 #define DWC2_CORE_REV_4_11a   0x4f54411a
 #define DWC2_CORE_REV_4_20a   0x4f54420a
+#define DWC2_CORE_REV_5_00b   0x4F54500b
 #define DWC2_FS_IOT_REV_1_00a 0x5531100a
 #define DWC2_HS_IOT_REV_1_00a 0x5532100a
 #define DWC2_CORE_REV_MASK    0x0000ffff

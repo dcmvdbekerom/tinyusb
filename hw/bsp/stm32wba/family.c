@@ -117,6 +117,7 @@ static void board_uart_configuration(void) {
       .Init.OverSampling = UART_OVERSAMPLING_16
   };
   HAL_UART_Init(&uart_handle);
+  HAL_UARTEx_EnableFifoMode(&uart_handle);
 }
 
 void board_init(void) {
@@ -175,19 +176,38 @@ void board_init(void) {
   #endif // USB_OTG_HS
 }
 
-void board_led_write(bool state) { HAL_GPIO_WritePin(LED_PORT, LED_PIN, state ? LED_STATE_ON : (1 - LED_STATE_ON)); }
+void board_led_write(bool state) {
+  GPIO_PinState pin_state = (GPIO_PinState)(state ? LED_STATE_ON : (1 - LED_STATE_ON));
+  HAL_GPIO_WritePin(LED_PORT, LED_PIN, pin_state);
+}
 
 uint32_t board_button_read(void) { return HAL_GPIO_ReadPin(BUTTON_PORT, BUTTON_PIN) == BUTTON_STATE_ACTIVE; }
 
 int board_uart_read(uint8_t *buf, int len) {
-  (void) buf;
-  (void) len;
-  return 0;
+  int count = 0;
+  while (count < len) {
+    if (__HAL_UART_GET_FLAG(&uart_handle, UART_FLAG_RXNE)) {
+      buf[count] = (uint8_t) uart_handle.Instance->RDR;
+      count++;
+    } else {
+      break;
+    }
+  }
+  return count;
 }
 
 int board_uart_write(void const *buf, int len) {
-  (void) HAL_UART_Transmit(&uart_handle, (const uint8_t *) buf, len, USART_TIMEOUT_TICKS);
-  return len;
+  const uint8_t *p = (const uint8_t *) buf;
+  int count = 0;
+  while (count < len) {
+    if (__HAL_UART_GET_FLAG(&uart_handle, UART_FLAG_TXE)) {
+      uart_handle.Instance->TDR = p[count];
+      count++;
+    } else {
+      break;
+    }
+  }
+  return count;
 }
 
 #if CFG_TUSB_OS == OPT_OS_NONE
@@ -198,7 +218,7 @@ void SysTick_Handler(void) {
   system_ticks++;
 }
 
-uint32_t board_millis(void) { return system_ticks; }
+uint32_t tusb_time_millis_api(void) { return system_ticks; }
 #endif
 
 void HardFault_Handler(void) { asm( "bkpt 1" ); }

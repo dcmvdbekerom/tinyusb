@@ -7,6 +7,6 @@ INC += \
 # Example source
 EXAMPLE_SOURCE += $(wildcard src/*.c)
 SRC_C += $(addprefix $(EXAMPLE_PATH)/, $(EXAMPLE_SOURCE))
-CFLAGS +=  -Wno-cast-align
+CFLAGS += -Wno-cast-align
 
 include ../../../hw/bsp/family_rules.mk

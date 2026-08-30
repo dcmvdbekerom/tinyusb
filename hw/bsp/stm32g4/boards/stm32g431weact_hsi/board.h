@@ -252,6 +252,7 @@ static void GPIO_Output_Init(void)
     LL_GPIO_SetPinMode(GPIOA, SELECT_PINS_A, LL_GPIO_MODE_OUTPUT);/* Configure GPIOA pins as outputs */
     LL_GPIO_SetPinMode(GPIOB, SELECT_PINS_B, LL_GPIO_MODE_OUTPUT);/* Configure GPIOB pins as outputs */
 
+
 }
 
 

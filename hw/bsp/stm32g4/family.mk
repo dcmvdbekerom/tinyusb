@@ -10,7 +10,7 @@ CPU_CORE ?= cortex-m4
 # Compiler Flags
 # --------------
 CFLAGS += \
-  -DCFG_TUSB_MCU=OPT_MCU_STM32G4
+  -DCFG_TUSB_MCU=OPT_MCU_STM32G4 -DUSE_FULL_LL_DRIVER
 
 # GCC Flags
 CFLAGS += \
@@ -39,7 +39,8 @@ SRC_C += \
 	$(ST_HAL_DRIVER)/Src/stm32$(ST_FAMILY)xx_hal_rcc_ex.c \
 	$(ST_HAL_DRIVER)/Src/stm32$(ST_FAMILY)xx_hal_uart.c \
 	$(ST_HAL_DRIVER)/Src/stm32$(ST_FAMILY)xx_hal_uart_ex.c \
-	$(ST_HAL_DRIVER)/Src/stm32$(ST_FAMILY)xx_hal_gpio.c
+	$(ST_HAL_DRIVER)/Src/stm32$(ST_FAMILY)xx_hal_gpio.c \
+    $(ST_HAL_DRIVER)/Src/stm32$(ST_FAMILY)xx_ll_gpio.c
 
 INC += \
 	$(TOP)/$(BOARD_PATH) \

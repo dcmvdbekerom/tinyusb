@@ -229,8 +229,8 @@ static void OPAMP_Init(void)
 }
 
 
-#define SELECT_PINS_A LL_GPIO_PIN_8 | LL_GPIO_PIN_9
-#define SELECT_PINS_B LL_GPIO_PIN_4 | LL_GPIO_PIN_6 | LL_GPIO_PIN_7 | LL_GPIO_PIN_8
+#define SELECT_PINS_A (LL_GPIO_PIN_8 | LL_GPIO_PIN_9)
+#define SELECT_PINS_B (LL_GPIO_PIN_4 | LL_GPIO_PIN_6 | LL_GPIO_PIN_7 | LL_GPIO_PIN_8)
 
 static void GPIO_Output_Init(void)
 {
@@ -242,15 +242,35 @@ static void GPIO_Output_Init(void)
     LL_GPIO_ResetOutputPin(GPIOA, SELECT_PINS_A);
     LL_GPIO_ResetOutputPin(GPIOB, SELECT_PINS_B);
 
-    /* Push-pull, no pull-up/down */
-    LL_GPIO_SetPinOutputType(GPIOA, SELECT_PINS_A, LL_GPIO_OUTPUT_PUSHPULL);
-    LL_GPIO_SetPinOutputType(GPIOB, SELECT_PINS_B, LL_GPIO_OUTPUT_PUSHPULL);
+    // /* Push-pull, no pull-up/down */
+    // LL_GPIO_SetPinOutputType(GPIOA, SELECT_PINS_A, LL_GPIO_OUTPUT_PUSHPULL);
+    // LL_GPIO_SetPinOutputType(GPIOB, SELECT_PINS_B, LL_GPIO_OUTPUT_PUSHPULL);
 
-    LL_GPIO_SetPinPull(GPIOA, SELECT_PINS_A, LL_GPIO_PULL_NO);
-    LL_GPIO_SetPinPull(GPIOB, SELECT_PINS_B, LL_GPIO_PULL_NO);
+    // LL_GPIO_SetPinPull(GPIOA, SELECT_PINS_A, LL_GPIO_PULL_NO);
+    // LL_GPIO_SetPinPull(GPIOB, SELECT_PINS_B, LL_GPIO_PULL_NO);
 
-    LL_GPIO_SetPinMode(GPIOA, SELECT_PINS_A, LL_GPIO_MODE_OUTPUT);/* Configure GPIOA pins as outputs */
-    LL_GPIO_SetPinMode(GPIOB, SELECT_PINS_B, LL_GPIO_MODE_OUTPUT);/* Configure GPIOB pins as outputs */
+    // LL_GPIO_SetPinMode(GPIOA, SELECT_PINS_A, LL_GPIO_MODE_OUTPUT);/* Configure GPIOA pins as outputs */
+    // LL_GPIO_SetPinMode(GPIOB, SELECT_PINS_B, LL_GPIO_MODE_OUTPUT);/* Configure GPIOB pins as outputs */
+    
+    // // LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_7, LL_GPIO_OUTPUT_PUSHPULL);
+    // LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_7, LL_GPIO_PULL_NO);
+    // LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_7, LL_GPIO_MODE_OUTPUT);/* Configure GPIOB pins as outputs */
+    
+    LL_GPIO_InitTypeDef gpio_init = {0};
+    
+    gpio_init.Mode = LL_GPIO_MODE_OUTPUT;
+    gpio_init.Speed = LL_GPIO_SPEED_LOW;
+    gpio_init.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+    gpio_init.Pull = LL_GPIO_PULL_NO;
+    
+    gpio_init.Pin = SELECT_PINS_A;
+    LL_GPIO_Init(GPIOA, &gpio_init);
+    
+    gpio_init.Pin = SELECT_PINS_B;
+    LL_GPIO_Init(GPIOB, &gpio_init);
+    
+    LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_7); //Select Hall (not VREF)
+    //LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_8); //Select 20x5 gain
 
 }
 

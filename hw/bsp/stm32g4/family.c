@@ -88,7 +88,7 @@ void board_init(void) {
 #endif
 
   OPAMP_Init();
-  GPIO_Output_Init();
+
 
   // Enable All GPIOs clocks
   __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -98,6 +98,7 @@ void board_init(void) {
   __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
+  
 #if CFG_TUSB_OS == OPT_OS_NONE
   // 1ms tick timer
   SysTick_Config(SystemCoreClock / 1000);
@@ -184,6 +185,8 @@ void board_init(void) {
   __HAL_RCC_DMA1_CLK_ENABLE();
 #endif
 
+  GPIO_Output_Init();
+
 }
 
 //--------------------------------------------------------------------+
@@ -197,6 +200,11 @@ void board_led_write(bool state) {
 
 uint32_t board_button_read(void) {
   return BUTTON_STATE_ACTIVE == HAL_GPIO_ReadPin(BUTTON_PORT, BUTTON_PIN);
+}
+
+void board_set_select_01(void){
+   
+   LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_7); //Select Hall (not VREF)
 }
 
 

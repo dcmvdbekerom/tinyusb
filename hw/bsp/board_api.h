@@ -101,6 +101,7 @@ int board_uart_write(void const *buf, int len);
 
 void DAC_set_values(uint32_t ch1, uint32_t ch2);
 
+void board_set_select_01(void);
 
 //--------------------------------------------------------------------+
 // Helper functions

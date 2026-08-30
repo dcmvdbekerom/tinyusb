@@ -25,8 +25,8 @@
  */
 
 /* metadata:
-   name: STM32 G431 WeAct
-   url: https://www.st.com/en/evaluation-tools/nucleo-g474re.html
+   name: STM32 G431 hall sensor board
+   url: 
 */
 
 #ifndef BOARD_H_
@@ -41,13 +41,13 @@
 // - PA11 for D-, CN10.14
 
 // LED
-#define LED_PORT              GPIOC
-#define LED_PIN               GPIO_PIN_6
+#define LED_PORT              GPIOA
+#define LED_PIN               GPIO_PIN_2|GPIO_PIN_6
 #define LED_STATE_ON          0
 
 // Button
-#define BUTTON_PORT           GPIOC
-#define BUTTON_PIN            GPIO_PIN_13
+#define BUTTON_PORT           GPIOB
+#define BUTTON_PIN            GPIO_PIN_8
 #define BUTTON_STATE_ACTIVE   1
 
 // // UART Enable for STLink VCOM
@@ -127,19 +127,19 @@ static inline void board_clock_init(void)
   HAL_RCCEx_CRSConfig(&RCC_CRSInitStruct);
 #endif
 
-    // Enable MCO on pin A8:
-    __HAL_RCC_GPIOA_CLK_ENABLE();
+    // // Enable MCO on pin A8:
+    // __HAL_RCC_GPIOA_CLK_ENABLE();
 
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    GPIO_InitStruct.Pin = GPIO_PIN_8;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH; // Crucial for 170MHz G4 clock speeds
-    GPIO_InitStruct.Alternate = GPIO_AF0_MCO;         // AF0 maps to MCO on STM32G4
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    // GPIO_InitTypeDef GPIO_InitStruct = {0};
+    // GPIO_InitStruct.Pin = GPIO_PIN_8;
+    // GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    // GPIO_InitStruct.Pull = GPIO_NOPULL;
+    // GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH; // Crucial for 170MHz G4 clock speeds
+    // GPIO_InitStruct.Alternate = GPIO_AF0_MCO;         // AF0 maps to MCO on STM32G4
+    // HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-    // HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_SYSCLK, RCC_MCODIV_4); 
-    HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_HSI, RCC_MCODIV_1); 
+    // // HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_SYSCLK, RCC_MCODIV_4); 
+    // HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_HSI, RCC_MCODIV_1); 
 
 }
 

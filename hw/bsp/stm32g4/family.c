@@ -87,6 +87,9 @@ void board_init(void) {
   DAC_init();
 #endif
 
+  OPAMP_Init();
+  GPIO_Output_Init();
+
   // Enable All GPIOs clocks
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();

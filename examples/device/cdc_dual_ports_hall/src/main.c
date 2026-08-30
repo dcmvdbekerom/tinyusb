@@ -61,6 +61,8 @@ int main(void) {
 
   board_init_after_tusb();
 
+  DAC_set_values( 0x800, 0x800);
+
   while (1) {
     tud_task(); // tinyusb device task
     cdc_task();
@@ -199,7 +201,7 @@ void led_blinking_task(void) {
  
   now = tusb_time_millis_api();
 
-  //DAC_set_values( now, now);
+  //DAC_set_values( now, -now);
 
   // Blink every interval ms
   if (now - start_ms < blink_interval_ms) {

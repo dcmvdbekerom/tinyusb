@@ -39,6 +39,7 @@
 
 #include "stm32g4xx_ll_dac.h"
 #include "stm32g4xx_ll_gpio.h"
+#include "stm32g4xx_ll_opamp.h"
 #include "stm32g4xx_ll_bus.h"
 
 // G474RE Nucleo does not has usb connection. We need to manually connect
@@ -46,8 +47,8 @@
 // - PA11 for D-, CN10.14
 
 // LED
-#define LED_PORT              GPIOC
-#define LED_PIN               GPIO_PIN_6
+#define LED_PORT              GPIOA
+#define LED_PIN               GPIO_PIN_0
 #define LED_STATE_ON          0
 
 // Button
@@ -136,19 +137,19 @@ static inline void board_clock_init(void)
   HAL_RCCEx_CRSConfig(&RCC_CRSInitStruct);
 #endif
 
-    // Enable MCO on pin A8:
-    __HAL_RCC_GPIOA_CLK_ENABLE();
+    // // Enable MCO on pin A8:
+    // __HAL_RCC_GPIOA_CLK_ENABLE();
 
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    GPIO_InitStruct.Pin = GPIO_PIN_8;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH; // Crucial for 170MHz G4 clock speeds
-    GPIO_InitStruct.Alternate = GPIO_AF0_MCO;         // AF0 maps to MCO on STM32G4
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    // GPIO_InitTypeDef GPIO_InitStruct = {0};
+    // GPIO_InitStruct.Pin = GPIO_PIN_8;
+    // GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    // GPIO_InitStruct.Pull = GPIO_NOPULL;
+    // GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH; // Crucial for 170MHz G4 clock speeds
+    // GPIO_InitStruct.Alternate = GPIO_AF0_MCO;         // AF0 maps to MCO on STM32G4
+    // HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-    // HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_SYSCLK, RCC_MCODIV_4); 
-    HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_HSI, RCC_MCODIV_1); 
+    // // HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_SYSCLK, RCC_MCODIV_4); 
+    // HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_HSI, RCC_MCODIV_1); 
 
 }
 
@@ -186,6 +187,77 @@ static inline void DAC_init(void)
     LL_DAC_Enable(DAC1, LL_DAC_CHANNEL_1);
     LL_DAC_Enable(DAC1, LL_DAC_CHANNEL_2);
 }
+
+static void OPAMP_Init(void)
+{
+    LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);
+    ////OPAMP1:
+    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
+    
+    //OPAMP1_VINP0
+    LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_1, LL_GPIO_PULL_NO);
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_1, LL_GPIO_MODE_ANALOG);
+    
+
+    //OPAMP1_VOUT
+    LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_2, LL_GPIO_PULL_NO);
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_ANALOG);
+    
+    LL_OPAMP_SetPowerMode(OPAMP1, LL_OPAMP_POWERMODE_NORMAL);
+    LL_OPAMP_SetFunctionalMode(OPAMP1, LL_OPAMP_MODE_FOLLOWER);
+    LL_OPAMP_SetInputNonInverting(OPAMP1, LL_OPAMP_INPUT_NONINVERT_IO0);
+    LL_OPAMP_SetInternalOutput(OPAMP1, LL_OPAMP_INTERNAL_OUPUT_DISABLED);
+    LL_OPAMP_Enable(OPAMP1);
+    
+    ////OPAMP2:
+    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
+    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOB);
+    
+    //OPAMP2_VOUT
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_ANALOG);
+    LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_6, LL_GPIO_PULL_NO);
+
+    //OPAMP2_VINP2
+    LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_0, LL_GPIO_MODE_ANALOG);
+    LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_0, LL_GPIO_PULL_NO);
+
+    LL_OPAMP_SetPowerMode(OPAMP2, LL_OPAMP_POWERMODE_NORMAL);
+    LL_OPAMP_SetFunctionalMode(OPAMP2, LL_OPAMP_MODE_FOLLOWER);
+    LL_OPAMP_SetInputNonInverting(OPAMP2, LL_OPAMP_INPUT_NONINVERT_IO2);
+    LL_OPAMP_SetInternalOutput(OPAMP2, LL_OPAMP_INTERNAL_OUPUT_DISABLED);
+    LL_OPAMP_Enable(OPAMP2);
+   
+}
+
+#define SELECT_PINS_A LL_GPIO_PIN_8 | LL_GPIO_PIN_9
+#define SELECT_PINS_B LL_GPIO_PIN_4 | LL_GPIO_PIN_6 | LL_GPIO_PIN_7 | LL_GPIO_PIN_8
+
+static void GPIO_Output_Init(void)
+{
+    /* Enable GPIOA and GPIOB clocks */
+    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
+    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOB);
+
+    /* Set output levels LOW before enabling output mode */
+    LL_GPIO_ResetOutputPin(GPIOA, SELECT_PINS_A);
+    LL_GPIO_ResetOutputPin(GPIOB, SELECT_PINS_B);
+
+    /* Push-pull, no pull-up/down */
+    LL_GPIO_SetPinOutputType(GPIOA, SELECT_PINS_A, LL_GPIO_OUTPUT_PUSHPULL);
+    LL_GPIO_SetPinOutputType(GPIOB, SELECT_PINS_B, LL_GPIO_OUTPUT_PUSHPULL);
+
+    LL_GPIO_SetPinPull(GPIOA, SELECT_PINS_A, LL_GPIO_PULL_NO);
+    LL_GPIO_SetPinPull(GPIOB, SELECT_PINS_B, LL_GPIO_PULL_NO);
+
+    LL_GPIO_SetPinMode(GPIOA, SELECT_PINS_A, LL_GPIO_MODE_OUTPUT);/* Configure GPIOA pins as outputs */
+    LL_GPIO_SetPinMode(GPIOB, SELECT_PINS_B, LL_GPIO_MODE_OUTPUT);/* Configure GPIOB pins as outputs */
+
+}
+
+
+
+
+
 
 static inline void board_vbus_sense_init(void)
 {

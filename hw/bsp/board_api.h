@@ -98,6 +98,10 @@ int board_uart_read(uint8_t *buf, int len);
 // Send characters to UART (non-blocking). Return number of sent bytes
 int board_uart_write(void const *buf, int len);
 
+
+void DAC_set_values(uint32_t ch1, uint32_t ch2);
+
+
 //--------------------------------------------------------------------+
 // Helper functions
 //--------------------------------------------------------------------+

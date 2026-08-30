@@ -1,4 +1,6 @@
 # STM32G431K6U6 32 pins 32kB ROM UFQFPN  32kB RAM 
+# Build with:
+# make BOARD=stm32g431hall flash-openocd OPENOCD_OPTION="-f interface/stlink.cfg -f target/stm32g4x.cfg"
 
 MCU_VARIANT = stm32g431xx
 

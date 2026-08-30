@@ -82,6 +82,10 @@ UART_HandleTypeDef UartHandle;
 void board_init(void) {
   HAL_Init();
   board_clock_init();
+  
+#ifdef DAC_ENABLE
+  DAC_init();
+#endif
 
   // Enable All GPIOs clocks
   __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -192,6 +196,8 @@ uint32_t board_button_read(void) {
   return BUTTON_STATE_ACTIVE == HAL_GPIO_ReadPin(BUTTON_PORT, BUTTON_PIN);
 }
 
+
+
 size_t board_get_unique_id(uint8_t id[], size_t max_len) {
   (void) max_len;
   volatile uint32_t * stm32_uuid = (volatile uint32_t *) UID_BASE;
@@ -241,6 +247,20 @@ int board_uart_write(void const *buf, int len) {
   return -1;
 #endif
 }
+
+#ifdef DAC_ENABLE
+void DAC_set_values(uint32_t ch1, uint32_t ch2)
+{
+    /* 12-bit right-aligned data */
+    LL_DAC_ConvertData12RightAligned(DAC1, LL_DAC_CHANNEL_1, ch1&0x00000FFF);
+    LL_DAC_ConvertData12RightAligned(DAC1, LL_DAC_CHANNEL_2, ch2&0x00000FFF);
+
+    LL_DAC_TrigSWConversion(DAC1, LL_DAC_CHANNEL_1);
+    LL_DAC_TrigSWConversion(DAC1, LL_DAC_CHANNEL_2);
+}
+#endif
+
+
 
 #if CFG_TUSB_OS == OPT_OS_NONE
 volatile uint32_t system_ticks = 0;

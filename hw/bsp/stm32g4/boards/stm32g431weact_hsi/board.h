@@ -32,9 +32,14 @@
 #ifndef BOARD_H_
 #define BOARD_H_
 
+
 #ifdef __cplusplus
  extern "C" {
 #endif
+
+#include "stm32g4xx_ll_dac.h"
+#include "stm32g4xx_ll_gpio.h"
+#include "stm32g4xx_ll_bus.h"
 
 // G474RE Nucleo does not has usb connection. We need to manually connect
 // - PA12 for D+, CN10.12
@@ -49,6 +54,10 @@
 #define BUTTON_PORT           GPIOC
 #define BUTTON_PIN            GPIO_PIN_13
 #define BUTTON_STATE_ACTIVE   1
+
+
+// DAC
+#define DAC_ENABLE
 
 // // UART Enable for STLink VCOM
 // #define UART_ID               11
@@ -141,6 +150,41 @@ static inline void board_clock_init(void)
     // HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_SYSCLK, RCC_MCODIV_4); 
     HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_HSI, RCC_MCODIV_1); 
 
+}
+
+
+
+static inline void DAC_init(void)
+{
+    /* Enable clocks */
+    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
+    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_DAC1);
+
+    /* DAC outputs:
+       DAC1_CH1 -> PA4
+       DAC1_CH2 -> PA5
+    */
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_4, LL_GPIO_MODE_ANALOG);
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_5, LL_GPIO_MODE_ANALOG);
+
+    LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_4, LL_GPIO_PULL_NO);
+    LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_5, LL_GPIO_PULL_NO);
+
+    /* Channel 1 */
+    LL_DAC_SetTriggerSource(DAC1, LL_DAC_CHANNEL_1,
+                            LL_DAC_TRIG_SOFTWARE);
+    LL_DAC_SetOutputBuffer(DAC1, LL_DAC_CHANNEL_1,
+                           LL_DAC_OUTPUT_BUFFER_ENABLE);
+
+    /* Channel 2 */
+    LL_DAC_SetTriggerSource(DAC1, LL_DAC_CHANNEL_2,
+                            LL_DAC_TRIG_SOFTWARE);
+    LL_DAC_SetOutputBuffer(DAC1, LL_DAC_CHANNEL_2,
+                           LL_DAC_OUTPUT_BUFFER_ENABLE);
+
+    /* Enable both channels */
+    LL_DAC_Enable(DAC1, LL_DAC_CHANNEL_1);
+    LL_DAC_Enable(DAC1, LL_DAC_CHANNEL_2);
 }
 
 static inline void board_vbus_sense_init(void)

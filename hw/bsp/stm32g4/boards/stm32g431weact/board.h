@@ -96,7 +96,7 @@ static inline void board_clock_init(void)
   PeriphClkInit.UsbClockSelection    = RCC_USBCLKSOURCE_HSI48;
   HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) ;
 
-#if 0 // TODO need to check if USB clock is enabled
+#if 1 // TODO need to check if USB clock is enabled
   /* Enable HSI48 */
   memset(&RCC_OscInitStruct, 0, sizeof(RCC_OscInitStruct));
 
@@ -125,6 +125,20 @@ static inline void board_clock_init(void)
   /* Start automatic synchronization */
   HAL_RCCEx_CRSConfig(&RCC_CRSInitStruct);
 #endif
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin = GPIO_PIN_8;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH; // Crucial for 170MHz G4 clock speeds
+    GPIO_InitStruct.Alternate = GPIO_AF0_MCO;         // AF0 maps to MCO on STM32G4
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    // Example: Outputting the main PLL clock divided by 4
+    HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_PLLCLK, RCC_MCODIV_4); 
+
+
 }
 
 static inline void board_vbus_sense_init(void)

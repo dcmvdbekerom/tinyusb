@@ -74,6 +74,7 @@ static inline void board_clock_init(void)
   // Initializes the CPU, AHB and APB buses clocks
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48 | RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState       = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT + 1;
   RCC_OscInitStruct.HSI48State     = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState   = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource  = RCC_PLLSOURCE_HSI;
@@ -126,8 +127,19 @@ static inline void board_clock_init(void)
   HAL_RCCEx_CRSConfig(&RCC_CRSInitStruct);
 #endif
 
-    // SystemClock_Config();
-    // SystemCoreClockUpdate();
+    // Enable MCO on pin A8:
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin = GPIO_PIN_8;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH; // Crucial for 170MHz G4 clock speeds
+    GPIO_InitStruct.Alternate = GPIO_AF0_MCO;         // AF0 maps to MCO on STM32G4
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    // HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_SYSCLK, RCC_MCODIV_4); 
+    HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_HSI, RCC_MCODIV_1); 
 
 }
 

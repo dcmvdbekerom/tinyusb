@@ -44,7 +44,8 @@ enum {
 
 enum {
   CMD_SUCCESS,
-  CMD_ERROR_CMD_MISSING
+  CMD_ERROR_CMD_MISSING,
+  CMD_ERROR_PARSE_VALUE
 };
   
   
@@ -58,17 +59,17 @@ static int parse_command(char *buf);
 //static int parse_dac_command(char *buf, uint32_t *ch1, uint32_t *ch2);
 
 
-#define MAGIC_DFU_NUMBER   0xB00470AD
-uint32_t dfu_flag __attribute__((persistent)) = 0; //this register is initialized randomly, with a tiny chance it is 0xB0047OAD, we accept this.
+//#define MAGIC_DFU_NUMBER   0xB00470AD
+//uint32_t dfu_flag __attribute__((persistent)) = 0; //this register is initialized randomly, with a tiny chance it is 0xB0047OAD, we accept this.
 
 /*------------- MAIN -------------*/
 int main(void) {
     
-    // Check if the VCP app set the magic DFU flag
-    if (dfu_flag == MAGIC_DFU_NUMBER) {
-        dfu_flag = 0;
-        board_reset_to_bootloader();
-    }  
+    // // Check if the VCP app set the magic DFU flag
+    // if (dfu_flag == MAGIC_DFU_NUMBER) {
+        // dfu_flag = 0;
+        // board_reset_to_bootloader();
+    // }  
 
   board_init();
 
@@ -159,11 +160,54 @@ static void vcp_write(const char* buf){
 }
 
 
+static int parse_channel_values(char* buf, uint32_t* ch1, uint32_t* ch2){
+   char token1[16], token2[16];
+   char *end;
+  
+   buf = get_token(buf, token1, sizeof(token1));
+   buf = get_token(buf, token2, sizeof(token2));   
+   
+   if (strcmp(token1, "CH1") == 0){
+     *ch1 = strtoul(token2, &end, 10);
+     if (end == token1) {
+        return -1; //unable to parse token 1
+     }
+     *ch1 |=  0x80000000;
+     *ch2 = 0x0;
+     return 1; //successfully read value for CH1
+   }
+   else if (strcmp(token1, "CH2") == 0){
+     *ch2 = strtoul(token2, &end, 10);
+     if (end == token1) {
+        return -1;  //unable to parse token 1
+     }
+     *ch1 = 0x0;
+     *ch2 |=  0x80000000;
+     return 2; //successfully read value for CH2
+   }
+   else{
+     *ch1 = strtoul(token1, &end, 10);
+     if (end == token1) {
+        return -1;  //unable to parse token 1
+     }
+     *ch2 = strtoul(token2, &end, 10);
+     if (end == token2) {
+        return -2;  //unable to parse token 2
+     }
+     *ch1 |= 0x80000000;
+     *ch2 |= 0x80000000;     
+     return 3; //successfully read value for both channels
+   }
+}
+    
+
 static int parse_command(char *buf){
     //const char cmd_success[] = "SUCCESS!";
     //const char cmd_error_cmd_missing[] = "ERROR - 'CMD' MISSING";
     char token[16];
-    
+    uint32_t val1, val2;
+    int res;  
+      
     buf = get_token(buf, token, sizeof(token));
     if (strcmp(token, "CMD") != 0){
       vcp_write("ERROR - 'CMD' MISSING");
@@ -174,12 +218,19 @@ static int parse_command(char *buf){
     if (strcmp(token, "BTLD") == 0){
       vcp_write("STARTING BOOTLOADER");
       
-      dfu_flag = MAGIC_DFU_NUMBER;
-      board_system_reset();
+      //dfu_flag = MAGIC_DFU_NUMBER;
+      //board_system_reset();
+      board_reset_to_bootloader();
       
       return CMD_SUCCESS; //never get here
     }
     else if (strcmp(token, "DAC") == 0){
+      //successfully read value for CH1
+      res = parse_channel_values(buf, &val1, &val2);
+      if (res < 0) return CMD_ERROR_PARSE_VALUE;
+
+      DAC_set_values(val1, val2);
+      
       vcp_write("DAC SETUP");
     }
     else if (strcmp(token, "SELECT") == 0){

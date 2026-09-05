@@ -315,11 +315,15 @@ int board_uart_write(void const *buf, int len) {
 void DAC_set_values(uint32_t ch1, uint32_t ch2)
 {
     /* 12-bit right-aligned data */
-    LL_DAC_ConvertData12RightAligned(DAC1, LL_DAC_CHANNEL_1, ch1&0x00000FFF);
-    LL_DAC_ConvertData12RightAligned(DAC1, LL_DAC_CHANNEL_2, ch2&0x00000FFF);
-
-    LL_DAC_TrigSWConversion(DAC1, LL_DAC_CHANNEL_1);
-    LL_DAC_TrigSWConversion(DAC1, LL_DAC_CHANNEL_2);
+    if (ch1&0x80000000){
+        LL_DAC_ConvertData12RightAligned(DAC1, LL_DAC_CHANNEL_1, ch1&0x00000FFF);
+        LL_DAC_TrigSWConversion(DAC1, LL_DAC_CHANNEL_1);
+    }
+    
+    if (ch2&0x80000000){
+        LL_DAC_ConvertData12RightAligned(DAC1, LL_DAC_CHANNEL_2, ch2&0x00000FFF);
+        LL_DAC_TrigSWConversion(DAC1, LL_DAC_CHANNEL_2);
+    }
 }
 #endif
 

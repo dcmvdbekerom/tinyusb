@@ -312,20 +312,64 @@ int board_uart_write(void const *buf, int len) {
 }
 
 #ifdef DAC_ENABLE
-void DAC_set_values(uint32_t ch1, uint32_t ch2)
+void DAC_set_values(uint16_t ch1, uint16_t ch2)
 {
     /* 12-bit right-aligned data */
-    if (ch1&0x80000000){
-        LL_DAC_ConvertData12RightAligned(DAC1, LL_DAC_CHANNEL_1, ch1&0x00000FFF);
+    if (ch1&0x8000){
+        LL_DAC_ConvertData12RightAligned(DAC1, LL_DAC_CHANNEL_1, ch1&0x0FFF);
         LL_DAC_TrigSWConversion(DAC1, LL_DAC_CHANNEL_1);
     }
     
-    if (ch2&0x80000000){
-        LL_DAC_ConvertData12RightAligned(DAC1, LL_DAC_CHANNEL_2, ch2&0x00000FFF);
+    if (ch2&0x8000){
+        LL_DAC_ConvertData12RightAligned(DAC1, LL_DAC_CHANNEL_2, ch2&0x0FFF);
         LL_DAC_TrigSWConversion(DAC1, LL_DAC_CHANNEL_2);
     }
 }
 #endif
+
+
+// void select_signal_gain_ch1(uint8_t signal, uint8_t gain){
+    
+    // uint32_t odr = READ_REG(GPIOx->ODR) ;
+    // WRITE_REG(GPIOx->BSRR, ((odr & PinMask) << 16u) | (~odr & PinMask));
+
+    // //signal
+    // //PB4 = 00
+    // //PGA_ch
+    // //PB6 = 01
+
+// }
+
+
+void select_signal_gain_ch2(uint16_t signal, uint16_t gain){
+    if (signal & 0x8000){
+        uint16_t signal_mask  =    0x3 << 7;
+        uint16_t signal_input = signal << 7;
+
+        //    S00 S01    
+        //    B8  B7
+        //    0    0  V_EXT
+        //    0    1  V_HALL FRONT
+        //    1    0  V_EXT
+        //    1    1  V_HALL SIDE
+
+        WRITE_REG(GPIOB->BSRR, (((~signal_input)&signal_mask) << 16) | (signal_input & signal_mask));
+    }
+    
+    if (gain & 0x8000){
+        uint16_t gain_mask  =  0x3 << 8;
+        uint16_t gain_input = gain << 8;
+        
+        //    S10 S11    
+        //    A9  A8
+        //    0    0  20 x 2 =  40x
+        //    0    1  20 x 5 = 100x
+        //    1    0 100 x 2 = 200x
+        //    1    1 100 x 5 = 500x
+            
+        WRITE_REG(GPIOA->BSRR, (((~gain_input)&gain_mask) << 16) | (gain_input & gain_mask));
+    }
+}
 
 
 

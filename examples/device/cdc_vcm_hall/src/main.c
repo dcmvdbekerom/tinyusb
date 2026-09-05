@@ -84,7 +84,7 @@ int main(void) {
 
   //DAC_set_values( 0x800, 0x800);
   DAC_set_values( 2067, 2067);
-  board_set_select_01();
+  select_signal_gain_ch2(1,0);
 
   while (1) {
     tud_task(); // tinyusb device task
@@ -160,7 +160,7 @@ static void vcp_write(const char* buf){
 }
 
 
-static int parse_channel_values(char* buf, uint32_t* ch1, uint32_t* ch2){
+static int parse_channel_values(char* buf, uint16_t* ch1, uint16_t* ch2){
    char token1[16], token2[16];
    char *end;
   
@@ -168,36 +168,34 @@ static int parse_channel_values(char* buf, uint32_t* ch1, uint32_t* ch2){
    buf = get_token(buf, token2, sizeof(token2));   
    
    if (strcmp(token1, "CH1") == 0){
-     *ch1 = strtoul(token2, &end, 10);
-     if (end == token1) {
-        return -1; //unable to parse token 1
+     *ch1 = (uint16_t)strtoul(token2, &end, 0);
+     if (end == token2) {
+        return 1; //unable to parse token 1
      }
-     *ch1 |=  0x80000000;
+     *ch1 |=  0x8000;
      *ch2 = 0x0;
-     return 1; //successfully read value for CH1
    }
    else if (strcmp(token1, "CH2") == 0){
-     *ch2 = strtoul(token2, &end, 10);
-     if (end == token1) {
-        return -1;  //unable to parse token 1
+     *ch2 = (uint16_t)strtoul(token2, &end, 0);
+     if (end == token2) {
+        return 1;  //unable to parse token 1
      }
      *ch1 = 0x0;
-     *ch2 |=  0x80000000;
-     return 2; //successfully read value for CH2
+     *ch2 |=  0x8000;
    }
    else{
-     *ch1 = strtoul(token1, &end, 10);
+     *ch1 = (uint16_t)strtoul(token1, &end, 0);
      if (end == token1) {
-        return -1;  //unable to parse token 1
+        return 1;  //unable to parse token 1
      }
-     *ch2 = strtoul(token2, &end, 10);
+     *ch2 = (uint16_t)strtoul(token2, &end, 0);
      if (end == token2) {
-        return -2;  //unable to parse token 2
+        return 2;  //unable to parse token 2
      }
-     *ch1 |= 0x80000000;
-     *ch2 |= 0x80000000;     
-     return 3; //successfully read value for both channels
+     *ch1 |= 0x8000;
+     *ch2 |= 0x8000;     
    }
+   return 0;
 }
     
 
@@ -205,7 +203,7 @@ static int parse_command(char *buf){
     //const char cmd_success[] = "SUCCESS!";
     //const char cmd_error_cmd_missing[] = "ERROR - 'CMD' MISSING";
     char token[16];
-    uint32_t val1, val2;
+    uint16_t val1, val2;
     int res;  
       
     buf = get_token(buf, token, sizeof(token));
@@ -227,15 +225,30 @@ static int parse_command(char *buf){
     else if (strcmp(token, "DAC") == 0){
       //successfully read value for CH1
       res = parse_channel_values(buf, &val1, &val2);
-      if (res < 0) return CMD_ERROR_PARSE_VALUE;
+      if (res) return CMD_ERROR_PARSE_VALUE;
 
       DAC_set_values(val1, val2);
       
-      vcp_write("DAC SETUP");
+      vcp_write("SET DAC SUCCESS!");
     }
-    else if (strcmp(token, "SELECT") == 0){
-      vcp_write("SIGNAL SELECT");
+    else if (strcmp(token, "SIG") == 0){
+      res = parse_channel_values(buf, &val1, &val2);
+      if (res) return CMD_ERROR_PARSE_VALUE;
+
+      select_signal_gain_ch2(val2, 0);
+
+      vcp_write("SET SIGNAL SUCCESS!");
     }
+    
+    else if (strcmp(token, "GAIN") == 0){
+      res = parse_channel_values(buf, &val1, &val2);
+      if (res) return CMD_ERROR_PARSE_VALUE;
+
+      select_signal_gain_ch2(0, val2);
+
+      vcp_write("SET GAIN SUCCESS!");
+    }
+    
     else if (strcmp(token, "STREAM") == 0){
       vcp_write("STREAM OPTIONS");
     }

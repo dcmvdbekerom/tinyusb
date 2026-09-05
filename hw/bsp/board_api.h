@@ -101,9 +101,9 @@ int board_uart_read(uint8_t *buf, int len);
 int board_uart_write(void const *buf, int len);
 
 
-void DAC_set_values(uint32_t ch1, uint32_t ch2);
+void DAC_set_values(uint16_t ch1, uint16_t ch2);
 
-void board_set_select_01(void);
+void select_signal_gain_ch2(uint16_t signal, uint16_t gain);
 
 //--------------------------------------------------------------------+
 // Helper functions

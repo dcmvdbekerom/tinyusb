@@ -144,53 +144,40 @@ static inline char *get_token( char *input, char *token, size_t token_size)
 }
 
 static void vcp_write(const char* buf){
-    tud_cdc_n_write(0, buf, sizeof(buf));
+    tud_cdc_n_write(0, buf, strlen(buf));
     tud_cdc_n_write(0, "\r\n",2);
     tud_cdc_n_write_flush(0);
 }
 
 
 static int parse_command(char *buf){
-    const char cmd_success[] = "SUCCESS!";
-    const char cmd_error_cmd_missing[] = "ERROR - 'CMD' MISSING";
+    //const char cmd_success[] = "SUCCESS!";
+    //const char cmd_error_cmd_missing[] = "ERROR - 'CMD' MISSING";
     char token[16];
     
     buf = get_token(buf, token, sizeof(token));
-    if (strncmp(token, "CMD", 3) != 0){
-      vcp_write(cmd_error_cmd_missing);
+    if (strcmp(token, "CMD") != 0){
+      vcp_write("ERROR - 'CMD' MISSING");
       return CMD_ERROR_CMD_MISSING;
     }
-    vcp_write(cmd_success);
+    
+    
+    buf = get_token(buf, token, sizeof(token));
+    if (strcmp(token, "BTLD") == 0){
+      vcp_write("STARTING BOOTLOADER");
+    }
+    else if (strcmp(token, "DAC") == 0){
+      vcp_write("SETTING DAC");
+    }
+    else if (strcmp(token, "SELECT") == 0){
+      vcp_write("SELECT SIGNAL");
+    }
+    else{
+      vcp_write("UNKNOWN COMMAND");  
+    }
     return CMD_SUCCESS;
 }
 
-
-
-
-// static int parse_dac_command(char *buf, uint32_t *ch1, uint32_t *ch2)
-// {
-    // char *p;
-    // char *end;
-    
-    // if (strncmp(buf, "DAC", 3) != 0) return 1;// Check command
-    // if (buf[3] != ' ' && buf[3] != '\0') return 2;// Make sure "DAC" is actually a token
-    
-    // p = buf + 3;
-    // while (*p == ' ' || *p == '\t') p++;
-    
-    // *ch1 = strtoul(p, &end, 10); // Parse channel 1
-    // if (end == p) return 3;       // no number
-    // p = end;
-    // while (*p == ' ' || *p == '\t') p++;// Skip whitespace
-
-    // *ch2 = strtoul(p, &end, 10); // Parse channel 2
-    // if (end == p) return 4;       // no number
-    // p = end;
-    // while (*p == ' ' || *p == '\t') p++;// Skip trailing whitespace
-    // // if (*p != '\0') return 5; // Nothing else is allowed
-    
-    // return 0;
-// }
 
 
 

@@ -189,6 +189,58 @@ void board_init(void) {
 
 }
 
+void board_system_reset(void){
+    HAL_NVIC_SystemReset();
+}
+
+
+#define SYSTEM_BOOTLOADER_ADDR   0x1FFF0000
+
+void board_reset_to_bootloader(void) {
+    // 1. Globally disable interrupts while we mess with context
+    __disable_irq();
+
+    // 2. Shut down your USB stack cleanly if using TinyUSB
+    #if CFG_TUD_ENABLED
+    tud_deinit(0);
+    #endif
+
+    // 3. Reset the STM32 RCC Clocks back to default 16MHz HSI state
+    HAL_RCC_DeInit();
+
+    // 4. Disable SysTick completely (ARM Cortex-M Syntax)
+    SysTick->CTRL = 0;
+    SysTick->LOAD = 0;
+    SysTick->VAL  = 0;
+
+    // 5. Clear all active peripheral interrupt channels
+    for (uint8_t i = 0; i < 8; i++) {
+        NVIC->ICER[i] = 0xFFFFFFFF;
+        NVIC->ICPR[i] = 0xFFFFFFFF;
+    }
+
+    // 6. Re-enable interrupts right before jumping 
+    // (The system bootloader relies on interrupts to run USB DFU)
+    __enable_irq();
+
+    // 7. ARM MANDATORY: Fetch and assign the Main Stack Pointer (MSP)
+    __set_MSP(*(__IO uint32_t*)SYSTEM_BOOTLOADER_ADDR);
+
+    // 8. Fetch the bootloader reset handler address (Base + 4 bytes)
+    
+    //   void (*bootloader_entry)(void) = (void (*)(void))0x1FFF8000;
+//
+//   bootloader_entry();
+    
+    uint32_t jump_address = *(__IO uint32_t*)(SYSTEM_BOOTLOADER_ADDR + 4);
+
+    // 9. Execute the inline function pointer call to jump
+    ((void (*)(void))jump_address)();
+
+    // Catch loop just in case
+    while(1);
+}
+
 //--------------------------------------------------------------------+
 // Board porting API
 //--------------------------------------------------------------------+

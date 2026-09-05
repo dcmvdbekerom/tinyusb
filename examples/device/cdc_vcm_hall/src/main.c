@@ -57,10 +57,19 @@ static void cdc_task(void);
 static int parse_command(char *buf);
 //static int parse_dac_command(char *buf, uint32_t *ch1, uint32_t *ch2);
 
-const uint8_t BL_REPLY[] = "STARTING BOOTLOADER\r\n";
+
+#define MAGIC_DFU_NUMBER   0xB00470AD
+uint32_t dfu_flag __attribute__((persistent)) = 0; //this register is initialized randomly, with a tiny chance it is 0xB0047OAD, we accept this.
 
 /*------------- MAIN -------------*/
 int main(void) {
+    
+    // Check if the VCP app set the magic DFU flag
+    if (dfu_flag == MAGIC_DFU_NUMBER) {
+        dfu_flag = 0;
+        board_reset_to_bootloader();
+    }  
+
   board_init();
 
   // init device stack on configured roothub port
@@ -161,16 +170,23 @@ static int parse_command(char *buf){
       return CMD_ERROR_CMD_MISSING;
     }
     
-    
     buf = get_token(buf, token, sizeof(token));
     if (strcmp(token, "BTLD") == 0){
       vcp_write("STARTING BOOTLOADER");
+      
+      dfu_flag = MAGIC_DFU_NUMBER;
+      board_system_reset();
+      
+      return CMD_SUCCESS; //never get here
     }
     else if (strcmp(token, "DAC") == 0){
-      vcp_write("SETTING DAC");
+      vcp_write("DAC SETUP");
     }
     else if (strcmp(token, "SELECT") == 0){
-      vcp_write("SELECT SIGNAL");
+      vcp_write("SIGNAL SELECT");
+    }
+    else if (strcmp(token, "STREAM") == 0){
+      vcp_write("STREAM OPTIONS");
     }
     else{
       vcp_write("UNKNOWN COMMAND");  
@@ -224,8 +240,7 @@ void tud_cdc_line_state_cb(uint8_t instance, bool dtr, bool rts) {
       cdc_line_coding_t coding;
       tud_cdc_get_line_coding(&coding);
       if (coding.bit_rate == 1200) {
-        tud_cdc_n_write(0, BL_REPLY, sizeof(BL_REPLY));
-        tud_cdc_n_write_flush(0);
+        vcp_write("STARTING BOOTLOADER");
         board_reset_to_bootloader();
       }
     }

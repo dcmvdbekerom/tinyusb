@@ -75,6 +75,8 @@ void board_init(void);
 // Init board after tinyusb is initialized
 void board_init_after_tusb(void);
 
+void board_system_reset(void);
+
 // Jump to bootloader
 void board_reset_to_bootloader(void);
 

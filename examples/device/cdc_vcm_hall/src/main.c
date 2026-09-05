@@ -42,11 +42,22 @@ enum {
   BLINK_SUSPENDED = 2500,
 };
 
+enum {
+  CMD_SUCCESS,
+  CMD_ERROR_CMD_MISSING
+};
+  
+  
+
+
 static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 
 static void led_blinking_task(void);
 static void cdc_task(void);
-static int parse_dac_command(char *buf, uint32_t *ch1, uint32_t *ch2);
+static int parse_command(char *buf);
+//static int parse_dac_command(char *buf, uint32_t *ch1, uint32_t *ch2);
+
+const uint8_t BL_REPLY[] = "STARTING BOOTLOADER\r\n";
 
 /*------------- MAIN -------------*/
 int main(void) {
@@ -74,39 +85,28 @@ int main(void) {
 
 // echo to either Serial0 or Serial1
 // with Serial0 as all lower case, Serial1 as all upper case
-static void echo_serial_port(uint8_t itf, uint8_t buf[], uint32_t count) {
-  uint8_t const case_diff = 'a' - 'A';
-  uint32_t ch1;
-  uint32_t ch2;
-  uint8_t ret_buf[] = "RESULT=X\r\n";
-
-  int res = parse_dac_command((char*)buf, &ch1, &ch2);
-  if (!res){
-      if (ch1 < 0x1000 && ch2 < 0x1000){
-        DAC_set_values(ch1, ch2);
-      }
-  }
-  ret_buf[7] = (uint8_t)res + '0';
-  for (uint32_t i=0; i<10; i++){
-    tud_cdc_n_write_char(itf, ret_buf[i]);
-  }
+static void echo_serial_port(char* buf, uint32_t count) {
+  //uint8_t const case_diff = 'a' - 'A';
+  //uint32_t ch1;
+  //uint32_t ch2;
+  //uint8_t ret_buf[] = "RESULT=X\r\n";
+  (void)count;
   
-  for (uint32_t i = 0; i < count; i++) {
-    if (itf == 0) {
-      // echo back 1st port as lower case
-      if (isupper(buf[i])) {
-        buf[i] += case_diff;
-      }
-    } else {
-      // echo back 2nd port as upper case
-      if (islower(buf[i])) {
-        buf[i] -= case_diff;
-      }
-    }
+  parse_command((char*)buf);
+  
 
-    tud_cdc_n_write_char(itf, buf[i]);
-  }
-  tud_cdc_n_write_flush(itf);
+
+
+  // int res = parse_dac_command((char*)buf, &ch1, &ch2);
+  // if (!res){
+      // if (ch1 < 0x1000 && ch2 < 0x1000){
+        // DAC_set_values(ch1, ch2);
+      // }
+  // }
+  // ret_buf[7] = (uint8_t)res + '0';
+  // tud_cdc_n_write(0, buf, count);
+  // tud_cdc_n_write(0, ret_buf, sizeof(ret_buf));
+  // tud_cdc_n_write_flush(0);
 }
 
 // Invoked when device is mounted
@@ -119,30 +119,81 @@ void tud_umount_cb(void) {
   blink_interval_ms = BLINK_NOT_MOUNTED;
 }
 
-static int parse_dac_command(char *buf, uint32_t *ch1, uint32_t *ch2)
+static inline char *get_token( char *input, char *token, size_t token_size)
 {
-    char *p;
-    char *end;
-    
-    if (strncmp(buf, "DAC", 3) != 0) return 1;// Check command
-    if (buf[3] != ' ' && buf[3] != '\0') return 2;// Make sure "DAC" is actually a token
-    
-    p = buf + 3;
-    while (*p == ' ' || *p == '\t') p++;
-    
-    *ch1 = strtoul(p, &end, 10); // Parse channel 1
-    if (end == p) return 3;       // no number
-    p = end;
-    while (*p == ' ' || *p == '\t') p++;// Skip whitespace
+    // Skip leading whitespace
+    while (*input == ' ' || *input == '\t' ||
+           *input == '\r' || *input == '\n') {
+        input++;
+    }
+    // Copy token
+    size_t i = 0;
+    token[0] = '\0';
+    while (*input != '\0' &&
+           *input != ' ' && *input != '\t' &&
+           *input != '\r' && *input != '\n') {
 
-    *ch2 = strtoul(p, &end, 10); // Parse channel 2
-    if (end == p) return 4;       // no number
-    p = end;
-    while (*p == ' ' || *p == '\t') p++;// Skip trailing whitespace
-    // if (*p != '\0') return 5; // Nothing else is allowed
-    
-    return 0;
+        if (i < token_size - 1) {
+            token[i++] = *input;
+        }
+        input++;
+    }
+    token[i] = '\0';
+
+    return input;
 }
+
+static void vcp_write(const char* buf){
+    tud_cdc_n_write(0, buf, sizeof(buf));
+    tud_cdc_n_write(0, "\r\n",2);
+    tud_cdc_n_write_flush(0);
+}
+
+
+static int parse_command(char *buf){
+    const char cmd_success[] = "SUCCESS!";
+    const char cmd_error_cmd_missing[] = "ERROR - 'CMD' MISSING";
+    char token[16];
+    
+    buf = get_token(buf, token, sizeof(token));
+    if (strncmp(token, "CMD", 3) != 0){
+      vcp_write(cmd_error_cmd_missing);
+      return CMD_ERROR_CMD_MISSING;
+    }
+    vcp_write(cmd_success);
+    return CMD_SUCCESS;
+}
+
+
+
+
+// static int parse_dac_command(char *buf, uint32_t *ch1, uint32_t *ch2)
+// {
+    // char *p;
+    // char *end;
+    
+    // if (strncmp(buf, "DAC", 3) != 0) return 1;// Check command
+    // if (buf[3] != ' ' && buf[3] != '\0') return 2;// Make sure "DAC" is actually a token
+    
+    // p = buf + 3;
+    // while (*p == ' ' || *p == '\t') p++;
+    
+    // *ch1 = strtoul(p, &end, 10); // Parse channel 1
+    // if (end == p) return 3;       // no number
+    // p = end;
+    // while (*p == ' ' || *p == '\t') p++;// Skip whitespace
+
+    // *ch2 = strtoul(p, &end, 10); // Parse channel 2
+    // if (end == p) return 4;       // no number
+    // p = end;
+    // while (*p == ' ' || *p == '\t') p++;// Skip trailing whitespace
+    // // if (*p != '\0') return 5; // Nothing else is allowed
+    
+    // return 0;
+// }
+
+
+
 //--------------------------------------------------------------------+
 // USB CDC
 //--------------------------------------------------------------------+
@@ -157,8 +208,8 @@ static void cdc_task(void) {
         uint32_t count = tud_cdc_n_read(itf, buf, sizeof(buf));
 
         // echo back to both serial ports
-        echo_serial_port(0, buf, count);
-        echo_serial_port(1, buf, count);
+        echo_serial_port((char*)buf, count);
+        //echo_serial_port(1, buf, count);
       }
 
       // Press on-board button to send Uart status notification
@@ -186,6 +237,8 @@ void tud_cdc_line_state_cb(uint8_t instance, bool dtr, bool rts) {
       cdc_line_coding_t coding;
       tud_cdc_get_line_coding(&coding);
       if (coding.bit_rate == 1200) {
+        tud_cdc_n_write(0, BL_REPLY, sizeof(BL_REPLY));
+        tud_cdc_n_write_flush(0);
         board_reset_to_bootloader();
       }
     }

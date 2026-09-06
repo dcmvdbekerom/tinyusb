@@ -102,7 +102,7 @@ int board_uart_write(void const *buf, int len);
 
 
 void DAC_set_values(uint16_t ch1, uint16_t ch2);
-
+void select_signal_gain_ch1(uint16_t signal, uint16_t gain);
 void select_signal_gain_ch2(uint16_t signal, uint16_t gain);
 
 //--------------------------------------------------------------------+

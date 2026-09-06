@@ -88,6 +88,7 @@ void board_init(void) {
 #endif
 
   OPAMP_Init();
+  SPI_init();
 
 
   // Enable All GPIOs clocks
@@ -339,6 +340,77 @@ void DAC_set_values(uint16_t ch1, uint16_t ch2)
     // //PB6 = 01
 
 // }
+
+
+
+
+
+
+    //LL_SPI_TransmitData8(SPI_TypeDef *SPIx, uint8_t TxData)
+
+
+void select_signal_gain_ch1(uint16_t signal, uint16_t gain){
+    
+    static uint8_t pga_config = 0;
+    bool spi_update = 0;
+    
+    if (signal & 0x8000){
+        spi_update = 1;
+        //      B2    B1    B0  signal
+        //     PGA   PGA S00=S01    
+        //     CAL   CHx  B6=B4  
+        //      0     0     0   V_3V3
+        //      0     0     1   V_HALL FRONT
+        //      0     1     0   V_EXT
+        //      0     1     1   V_HALL SIDE
+        //      1     0     0   CAL1
+        //      1     0     1   CAL2
+        //      1     1     0   CAL3
+        //      1     1     1   CAL4
+        
+        uint8_t pga_ch_mask = 0x0F;
+        pga_config &= ~pga_ch_mask;   
+        
+        if (!(signal & 0x4)){
+            uint16_t signal_gpio_bit = (signal & 0x1);
+            uint16_t signal_gpio = signal_gpio_bit << 6 | signal_gpio_bit << 4;
+            uint16_t signal_mask = 1 << 6 | 1 << 4;     
+            WRITE_REG(GPIOB->BSRR, (((~signal_gpio)&signal_mask) << 16) | (signal_gpio & signal_mask));
+            
+            pga_config |= (signal & 0x2) >> 1;
+        }
+        else {
+            pga_config |= 0x0C | (signal & 0x3);
+        }
+    }
+    
+    if (gain & 0x8000){
+        spi_update = 1;
+        //      B2    B1    B0   gain
+        //      0     0     0      1x
+        //      0     0     1      2x
+        //      0     1     0      5x
+        //      0     1     1     10x
+        //      1     0     0     20x
+        //      1     0     1     50x
+        //      1     1     0    100x
+        //      1     1     1    200x
+
+        uint8_t pga_gain_mask = 0xF0;
+        pga_config &= ~pga_gain_mask;
+        pga_config |= (gain & 0x7) << 4;        
+    }
+    
+    if (spi_update){
+        LL_GPIO_ResetOutputPin(GPIOA, SPI1_NSS_PIN);
+        LL_SPI_TransmitData8(SPI1, 0x2A);
+        LL_SPI_TransmitData8(SPI1, pga_config);
+        while (LL_SPI_IsActiveFlag_BSY(SPI1)) __NOP();
+        LL_GPIO_SetOutputPin(GPIOA, SPI1_NSS_PIN);
+    }
+}
+
+
 
 
 void select_signal_gain_ch2(uint16_t signal, uint16_t gain){

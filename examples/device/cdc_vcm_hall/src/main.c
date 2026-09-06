@@ -59,17 +59,17 @@ static int parse_command(char *buf);
 //static int parse_dac_command(char *buf, uint32_t *ch1, uint32_t *ch2);
 
 
-//#define MAGIC_DFU_NUMBER   0xB00470AD
-//uint32_t dfu_flag __attribute__((persistent)) = 0; //this register is initialized randomly, with a tiny chance it is 0xB0047OAD, we accept this.
+#define MAGIC_DFU_NUMBER   0xB00470AD
+uint32_t dfu_flag __attribute__((persistent)) = 0; //this register is initialized randomly, with a tiny chance it is 0xB0047OAD, we accept this.
 
 /*------------- MAIN -------------*/
 int main(void) {
     
-    // // Check if the VCP app set the magic DFU flag
-    // if (dfu_flag == MAGIC_DFU_NUMBER) {
-        // dfu_flag = 0;
-        // board_reset_to_bootloader();
-    // }  
+    // Check if the VCP app set the magic DFU flag
+    if (dfu_flag == MAGIC_DFU_NUMBER) {
+        dfu_flag = 0;
+        board_reset_to_bootloader();
+    }  
 
   board_init();
 
@@ -216,9 +216,9 @@ static int parse_command(char *buf){
     if (strcmp(token, "BTLD") == 0){
       vcp_write("STARTING BOOTLOADER");
       
-      //dfu_flag = MAGIC_DFU_NUMBER;
-      //board_system_reset();
-      board_reset_to_bootloader();
+      dfu_flag = MAGIC_DFU_NUMBER;
+      board_system_reset();
+      //board_reset_to_bootloader();
       
       return CMD_SUCCESS; //never get here
     }
@@ -234,7 +234,7 @@ static int parse_command(char *buf){
     else if (strcmp(token, "SIG") == 0){
       res = parse_channel_values(buf, &val1, &val2);
       if (res) return CMD_ERROR_PARSE_VALUE;
-
+      select_signal_gain_ch1(val1, 0);
       select_signal_gain_ch2(val2, 0);
 
       vcp_write("SET SIGNAL SUCCESS!");
@@ -243,7 +243,7 @@ static int parse_command(char *buf){
     else if (strcmp(token, "GAIN") == 0){
       res = parse_channel_values(buf, &val1, &val2);
       if (res) return CMD_ERROR_PARSE_VALUE;
-
+      select_signal_gain_ch1(0, val1);
       select_signal_gain_ch2(0, val2);
 
       vcp_write("SET GAIN SUCCESS!");

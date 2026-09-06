@@ -39,6 +39,7 @@
 
 #include "stm32g4xx_ll_dac.h"
 #include "stm32g4xx_ll_gpio.h"
+#include "stm32g4xx_ll_spi.h"
 #include "stm32g4xx_ll_opamp.h"
 #include "stm32g4xx_ll_bus.h"
 
@@ -89,7 +90,7 @@ static inline void board_clock_init(void)
   RCC_OscInitStruct.PLL.PLLState   = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource  = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM       = RCC_PLLM_DIV4;
-  RCC_OscInitStruct.PLL.PLLN       = 85;
+  RCC_OscInitStruct.PLL.PLLN       = 80;
   RCC_OscInitStruct.PLL.PLLP       = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ       = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR       = RCC_PLLR_DIV2;
@@ -246,7 +247,7 @@ static void GPIO_Output_Init(void)
     LL_GPIO_InitTypeDef gpio_init = {0};
     
     gpio_init.Mode = LL_GPIO_MODE_OUTPUT;
-    gpio_init.Speed = LL_GPIO_SPEED_LOW;
+    gpio_init.Speed = LL_GPIO_SPEED_FREQ_LOW;
     gpio_init.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
     gpio_init.Pull = LL_GPIO_PULL_NO;
   
@@ -257,7 +258,53 @@ static void GPIO_Output_Init(void)
     LL_GPIO_Init(GPIOB, &gpio_init);
 }
 
+#define SPI1_SCK_PIN  LL_GPIO_PIN_3  //B
+#define SPI1_MOSI_PIN LL_GPIO_PIN_5  //B
+#define SPI1_NSS_PIN  LL_GPIO_PIN_15 //A
 
+static inline void SPI_init(void){
+    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
+    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOB);
+    LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SPI1);
+
+    LL_GPIO_InitTypeDef gpio_init = {0};
+    
+
+    gpio_init.Speed = LL_GPIO_SPEED_FREQ_VERY_HIGH;
+    gpio_init.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+    gpio_init.Pull = LL_GPIO_PULL_NO;
+  
+    gpio_init.Pin = SPI1_NSS_PIN;
+    gpio_init.Mode = LL_GPIO_MODE_OUTPUT;
+    LL_GPIO_Init(GPIOA, &gpio_init);
+    
+    gpio_init.Pin = SPI1_SCK_PIN|SPI1_MOSI_PIN;
+    gpio_init.Mode = LL_GPIO_MODE_ALTERNATE;
+    gpio_init.Alternate = LL_GPIO_AF_5;
+    LL_GPIO_Init(GPIOB, &gpio_init);
+
+
+    LL_SPI_InitTypeDef spi_init = {0};
+    
+    spi_init.TransferDirection  = LL_SPI_HALF_DUPLEX_TX;
+    spi_init.Mode               = LL_SPI_MODE_MASTER;
+    spi_init.DataWidth          = LL_SPI_DATAWIDTH_8BIT;
+    spi_init.ClockPolarity      = LL_SPI_POLARITY_LOW;
+    spi_init.ClockPhase         = LL_SPI_PHASE_1EDGE; // LL_SPI_PHASE_2EDGE
+    spi_init.NSS                = LL_SPI_NSS_SOFT;
+    spi_init.BaudRate           = LL_SPI_BAUDRATEPRESCALER_DIV16;
+    spi_init.BitOrder           = LL_SPI_MSB_FIRST;
+    spi_init.CRCCalculation     = LL_SPI_CRCCALCULATION_DISABLE;
+    
+    
+    LL_GPIO_SetOutputPin(GPIOA, SPI1_NSS_PIN);
+
+    LL_SPI_Init(SPI1, &spi_init);
+    LL_SPI_Enable(SPI1);
+   
+
+    
+}
 
 
 

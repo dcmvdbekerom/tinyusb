@@ -90,7 +90,7 @@ static inline void board_clock_init(void)
   RCC_OscInitStruct.PLL.PLLState   = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource  = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM       = RCC_PLLM_DIV4;
-  RCC_OscInitStruct.PLL.PLLN       = 80;
+  RCC_OscInitStruct.PLL.PLLN       = 85;
   RCC_OscInitStruct.PLL.PLLP       = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ       = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR       = RCC_PLLR_DIV2;
@@ -207,6 +207,7 @@ static void OPAMP_Init(void)
     LL_OPAMP_SetPowerMode(OPAMP1, LL_OPAMP_POWERMODE_NORMAL);
     LL_OPAMP_SetFunctionalMode(OPAMP1, LL_OPAMP_MODE_FOLLOWER);
     LL_OPAMP_SetInputNonInverting(OPAMP1, LL_OPAMP_INPUT_NONINVERT_IO0);
+    //LL_OPAMP_SetInputInverting(OPAMP1, LL_OPAMP_INPUT_INVERT_IO0);
     LL_OPAMP_SetInternalOutput(OPAMP1, LL_OPAMP_INTERNAL_OUPUT_DISABLED);
     LL_OPAMP_Enable(OPAMP1);
     
@@ -225,6 +226,7 @@ static void OPAMP_Init(void)
     LL_OPAMP_SetPowerMode(OPAMP2, LL_OPAMP_POWERMODE_NORMAL);
     LL_OPAMP_SetFunctionalMode(OPAMP2, LL_OPAMP_MODE_FOLLOWER);
     LL_OPAMP_SetInputNonInverting(OPAMP2, LL_OPAMP_INPUT_NONINVERT_IO2);
+    //LL_OPAMP_SetInputInverting(OPAMP1, LL_OPAMP_INPUT_INVERT_IO0);
     LL_OPAMP_SetInternalOutput(OPAMP2, LL_OPAMP_INTERNAL_OUPUT_DISABLED);
     LL_OPAMP_Enable(OPAMP2);
    

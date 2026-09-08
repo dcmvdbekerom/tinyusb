@@ -398,7 +398,35 @@ void select_signal_gain_ch1(uint16_t signal, uint16_t gain){
 
         uint8_t pga_gain_mask = 0xF0;
         pga_config &= ~pga_gain_mask;
-        pga_config |= (gain & 0x7) << 4;        
+        pga_config |= (gain & 0x7) << 4;    
+
+        if (gain&0x00F0){
+            
+            //uint32_t gain_arg = (((gain&0x00F0)>>4)-1) << OPAMP_CSR_PGGAIN_Pos;
+            uint32_t gain_arg = LL_OPAMP_PGA_GAIN_2_OR_MINUS_1;
+            switch ((gain & 0x0070) >> 4)
+            {
+                case 1: gain_arg = LL_OPAMP_PGA_GAIN_2_OR_MINUS_1; break;
+                case 2: gain_arg = LL_OPAMP_PGA_GAIN_4_OR_MINUS_3; break;
+                case 3: gain_arg = LL_OPAMP_PGA_GAIN_8_OR_MINUS_7; break;
+                case 4: gain_arg = LL_OPAMP_PGA_GAIN_16_OR_MINUS_15; break;
+                case 5: gain_arg = LL_OPAMP_PGA_GAIN_32_OR_MINUS_31; break;
+                case 6: gain_arg = LL_OPAMP_PGA_GAIN_64_OR_MINUS_63; break;
+            }
+            LL_OPAMP_Disable(OPAMP1);
+            LL_OPAMP_SetFunctionalMode(OPAMP1, LL_OPAMP_MODE_PGA_IO0_BIAS);
+            LL_OPAMP_SetPGAGain(OPAMP1, gain_arg);
+            OPAMP1->CSR &= ~OPAMP_CSR_CALON;
+            LL_OPAMP_Enable(OPAMP1);
+        }
+        else {
+            LL_OPAMP_Disable(OPAMP1);
+            LL_OPAMP_SetFunctionalMode(OPAMP1, LL_OPAMP_MODE_FOLLOWER);
+            LL_OPAMP_Enable(OPAMP1);
+        }
+
+
+        
     }
     
     if (spi_update){
@@ -440,6 +468,34 @@ void select_signal_gain_ch2(uint16_t signal, uint16_t gain){
         //    1    1 100 x 5 = 500x
             
         WRITE_REG(GPIOA->BSRR, (((~gain_input)&gain_mask) << 16) | (gain_input & gain_mask));
+    
+        if (gain&0x00F0){
+            
+            //uint32_t gain_arg = (((gain&0x0070)>>4)-1) << OPAMP_CSR_PGGAIN_Pos;
+            uint32_t gain_arg = LL_OPAMP_PGA_GAIN_2_OR_MINUS_1;
+            switch ((gain & 0x0070) >> 4)
+            {
+                case 1: gain_arg = LL_OPAMP_PGA_GAIN_2_OR_MINUS_1; break;
+                case 2: gain_arg = LL_OPAMP_PGA_GAIN_4_OR_MINUS_3; break;
+                case 3: gain_arg = LL_OPAMP_PGA_GAIN_8_OR_MINUS_7; break;
+                case 4: gain_arg = LL_OPAMP_PGA_GAIN_16_OR_MINUS_15; break;
+                case 5: gain_arg = LL_OPAMP_PGA_GAIN_32_OR_MINUS_31; break;
+                case 6: gain_arg = LL_OPAMP_PGA_GAIN_64_OR_MINUS_63; break;
+            }
+            
+            LL_OPAMP_Disable(OPAMP2);
+            LL_OPAMP_SetFunctionalMode(OPAMP2, LL_OPAMP_MODE_PGA_IO0_BIAS);
+            LL_OPAMP_SetPGAGain(OPAMP2, gain_arg);
+            OPAMP1->CSR &= ~OPAMP_CSR_CALON;
+            LL_OPAMP_Enable(OPAMP2);
+
+        }
+        else {
+            LL_OPAMP_Disable(OPAMP2);
+            LL_OPAMP_SetFunctionalMode(OPAMP2, LL_OPAMP_MODE_FOLLOWER);
+            LL_OPAMP_Enable(OPAMP2);
+        }
+    
     }
 }
 

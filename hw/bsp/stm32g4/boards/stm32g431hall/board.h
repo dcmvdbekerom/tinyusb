@@ -89,7 +89,7 @@ static inline void board_clock_init(void)
   RCC_OscInitStruct.PLL.PLLState   = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource  = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM       = RCC_PLLM_DIV4;
-  RCC_OscInitStruct.PLL.PLLN       = 80;
+  RCC_OscInitStruct.PLL.PLLN       = 85;
   RCC_OscInitStruct.PLL.PLLP       = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ       = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR       = RCC_PLLR_DIV2;
@@ -292,7 +292,7 @@ static inline void SPI_init(void){
     spi_init.ClockPolarity      = LL_SPI_POLARITY_LOW;
     spi_init.ClockPhase         = LL_SPI_PHASE_1EDGE; // LL_SPI_PHASE_2EDGE
     spi_init.NSS                = LL_SPI_NSS_SOFT;
-    spi_init.BaudRate           = LL_SPI_BAUDRATEPRESCALER_DIV16;
+    spi_init.BaudRate           = LL_SPI_BAUDRATEPRESCALER_DIV32;
     spi_init.BitOrder           = LL_SPI_MSB_FIRST;
     spi_init.CRCCalculation     = LL_SPI_CRCCALCULATION_DISABLE;
     

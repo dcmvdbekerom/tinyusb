@@ -89,7 +89,7 @@ void board_init(void) {
 
   OPAMP_Init();
   SPI_init();
-
+  timer_init();
 
   // Enable All GPIOs clocks
   __HAL_RCC_GPIOA_CLK_ENABLE();

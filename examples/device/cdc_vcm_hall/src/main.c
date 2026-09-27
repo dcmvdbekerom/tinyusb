@@ -55,9 +55,12 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 
 static void led_blinking_task(void);
 static void cdc_task(void);
+static void vendor_task(void);
 static int parse_command(char *buf);
 //static int parse_dac_command(char *buf, uint32_t *ch1, uint32_t *ch2);
 
+#define DMA_BUF_SIZE 1024
+uint32_t timestamp_buffer[DMA_BUF_SIZE];
 
 #define MAGIC_DFU_NUMBER   0xB00470AD
 uint32_t dfu_flag __attribute__((persistent)) = 0; //this register is initialized randomly, with a tiny chance it is 0xB0047OAD, we accept this.
@@ -89,6 +92,7 @@ int main(void) {
   while (1) {
     tud_task(); // tinyusb device task
     cdc_task();
+    vendor_task();
     led_blinking_task();
   }
 }
@@ -310,6 +314,75 @@ void tud_cdc_line_state_cb(uint8_t instance, bool dtr, bool rts) {
     }
   }
 }
+
+
+//-------------------------------------+
+// VENDOR TASK
+//-------------------------------------+
+
+static void vendor_task(void) {
+    
+    
+   
+    if (!tud_vendor_available()) {
+        return;
+    }
+
+    // Read one or more bytes from the host
+    uint8_t buf[64];
+    uint32_t count = tud_vendor_read(buf, sizeof(buf));
+    
+
+    int32_t *values = (int32_t *)buf;
+    uint32_t n = count / sizeof(*values);
+
+
+    for (uint32_t i = 0; i < n; i++) {
+        values[i] += 1;
+    }
+
+    // Send the modified integers back
+    if (n > 0) {
+        tud_vendor_write(buf, n * sizeof(*values));
+        tud_vendor_write_flush();
+    }
+   
+   //if (!tud_vendor_mounted()) return;
+   
+   
+    // // Calculate where the DMA is currently writing
+    // // __HAL_DMA_GET_COUNTER returns remaining items to transfer
+    // uint32_t current_dma_index = DMA_BUF_SIZE - __HAL_DMA_GET_COUNTER(&hdma_tim2_up);
+    
+    // if (current_dma_index == last_read_index) return;
+    
+    // uint32_t available_bytes = 0;
+    
+    // // Check how many 32-bit words are new
+    // if (current_dma_index > last_read_index) {
+        // available_bytes = (current_dma_index - last_read_index) * sizeof(uint32_t);
+        
+        // // Write directly to endpoint FIFO if there's space
+        // if (tud_vendor_write_available() >= available_bytes) {
+            // tud_vendor_write(((uint8_t*)&timestamp_buffer[last_read_index]), available_bytes);
+            // last_read_index = current_dma_index;
+        // }
+    // } else {
+        // // Handle DMA wrapper around the circular buffer
+        // uint32_t chunk1 = (DMA_BUF_SIZE - last_read_index) * sizeof(uint32_t);
+        // if (tud_vendor_write_available() >= chunk1) {
+            // tud_vendor_write(((uint8_t*)&timestamp_buffer[last_read_index]), chunk1);
+            // last_read_index = 0; // Wrap around to zero next loop
+        // }
+    // }
+   // tud_vendor_write_flush();
+}
+
+
+
+
+
+
 
 //--------------------------------------------------------------------+
 // BLINKING TASK

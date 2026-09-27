@@ -95,7 +95,7 @@
 #define CFG_TUD_MSC               0
 #define CFG_TUD_HID               0
 #define CFG_TUD_MIDI              0
-#define CFG_TUD_VENDOR            0
+#define CFG_TUD_VENDOR            1
 
 #define CFG_TUD_CDC_NOTIFY        1 // Enable use of notification endpoint
 
@@ -107,6 +107,12 @@
 // Larger RX_EPSIZE requires CFG_TUD_CDC_RX_NEED_ZLP = 1 and host ZLP support
 #define CFG_TUD_CDC_RX_EPSIZE  (TUD_OPT_HIGH_SPEED ? 512 : 64)
 #define CFG_TUD_CDC_TX_EPSIZE  (TUD_OPT_HIGH_SPEED ? 512 : 64)
+
+
+#define CFG_TUD_VENDOR_RX_BUFSIZE  64
+#define CFG_TUD_VENDOR_TX_BUFSIZE  64 // Match your packet processing footprint
+
+
 
 #ifdef __cplusplus
  }

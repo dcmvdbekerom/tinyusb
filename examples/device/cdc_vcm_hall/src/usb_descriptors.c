@@ -27,7 +27,7 @@
 #include "tusb.h"
 
 // Unique PID per example: guarantees re-enumeration on re-flash and a fresh host driver match.
-#define USB_PID           0x4006
+#define USB_PID   0x133F
 
 #define USB_VID   0xCafe
 #define USB_BCD   0x0200
@@ -38,7 +38,7 @@
 static tusb_desc_device_t const desc_device = {
     .bLength            = sizeof(tusb_desc_device_t),
     .bDescriptorType    = TUSB_DESC_DEVICE,
-    .bcdUSB             = USB_BCD,
+    .bcdUSB             =  0x0200, //USB_BCD,
 
     // Use Interface Association Descriptor (IAD) for CDC
     // As required by USB Specs IAD's subclass must be common class (2) and protocol must be IAD (1)
@@ -72,64 +72,19 @@ enum {
   ITF_NUM_CDC_0_DATA,
   // ITF_NUM_CDC_1,
   // ITF_NUM_CDC_1_DATA,
+  ITF_NUM_VENDOR,
   ITF_NUM_TOTAL
 };
 
-#define CONFIG_TOTAL_LEN    (TUD_CONFIG_DESC_LEN + CFG_TUD_CDC * TUD_CDC_DESC_LEN)
+//#define CONFIG_TOTAL_LEN    (TUD_CONFIG_DESC_LEN + CFG_TUD_CDC * TUD_CDC_DESC_LEN)
+#define CONFIG_TOTAL_LEN    (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN + TUD_VENDOR_DESC_LEN)
 
-#if CFG_TUSB_MCU == OPT_MCU_LPC175X_6X || CFG_TUSB_MCU == OPT_MCU_LPC177X_8X || CFG_TUSB_MCU == OPT_MCU_LPC40XX
-  // LPC 17xx and 40xx endpoint type (bulk/interrupt/iso) are fixed by its number
-  // 0 control, 1 In, 2 Bulk, 3 Iso, 4 In etc ...
-  #define EPNUM_CDC_0_NOTIF   0x81
-  #define EPNUM_CDC_0_OUT     0x02
-  #define EPNUM_CDC_0_IN      0x82
+#define EPNUM_CDC_0_NOTIF   0x81
+#define EPNUM_CDC_0_OUT     0x02
+#define EPNUM_CDC_0_IN      0x82
 
-  // #define EPNUM_CDC_1_NOTIF   0x84
-  // #define EPNUM_CDC_1_OUT     0x05
-  // #define EPNUM_CDC_1_IN      0x85
-
-#elif CFG_TUSB_MCU == OPT_MCU_CXD56
-  // CXD56 USB driver has fixed endpoint type (bulk/interrupt/iso) and direction (IN/OUT) by its number
-  // 0 control (IN/OUT), 1 Bulk (IN), 2 Bulk (OUT), 3 In (IN), 4 Bulk (IN), 5 Bulk (OUT), 6 In (IN)
-  #define EPNUM_CDC_0_NOTIF   0x83
-  #define EPNUM_CDC_0_OUT     0x02
-  #define EPNUM_CDC_0_IN      0x81
-
-  // #define EPNUM_CDC_1_NOTIF   0x86
-  // #define EPNUM_CDC_1_OUT     0x05
-  // #define EPNUM_CDC_1_IN      0x84
-
-#elif CFG_TUD_ENDPOINT_ONE_DIRECTION_ONLY
-  // MCUs that don't support a same endpoint number with different direction IN and OUT defined in tusb_mcu.h
-  //    e.g EP1 OUT & EP1 IN cannot exist together
-  #if TU_CHECK_MCU(OPT_MCU_MAX32650, OPT_MCU_MAX32666, OPT_MCU_MAX32690, OPT_MCU_MAX78002)
-    // Put bulk on EP>=8 so the 2048/4096-byte FIFOs can back double packet buffering
-    #define EPNUM_CDC_0_NOTIF   0x81
-    #define EPNUM_CDC_0_OUT     0x08
-    #define EPNUM_CDC_0_IN      0x89
-
-    // #define EPNUM_CDC_1_NOTIF   0x82
-    // #define EPNUM_CDC_1_OUT     0x0A
-    // #define EPNUM_CDC_1_IN      0x8B
-  #else
-    #define EPNUM_CDC_0_NOTIF   0x81
-    #define EPNUM_CDC_0_OUT     0x02
-    #define EPNUM_CDC_0_IN      0x83
-
-    // #define EPNUM_CDC_1_NOTIF   0x84
-    // #define EPNUM_CDC_1_OUT     0x05
-    // #define EPNUM_CDC_1_IN      0x86
-  #endif
-
-#else
-  #define EPNUM_CDC_0_NOTIF   0x81
-  #define EPNUM_CDC_0_OUT     0x02
-  #define EPNUM_CDC_0_IN      0x82
-
-  // #define EPNUM_CDC_1_NOTIF   0x83
-  // #define EPNUM_CDC_1_OUT     0x04
-  // #define EPNUM_CDC_1_IN      0x84
-#endif
+#define EPNUM_VENDOR_OUT    0x03  // New Vendor OUT Endpoint
+#define EPNUM_VENDOR_IN     0x83  // New Vendor IN Endpoint
 
 static uint8_t const desc_fs_configuration[] = {
   // Config number, interface count, string index, total length, attribute, power in mA
@@ -139,6 +94,7 @@ static uint8_t const desc_fs_configuration[] = {
   TUD_CDC_DESCRIPTOR(ITF_NUM_CDC_0, 4, EPNUM_CDC_0_NOTIF, 16, EPNUM_CDC_0_OUT, EPNUM_CDC_0_IN, 64),
 
   // 2nd CDC: Interface number, string index, EP notification address and size, EP data address (out, in) and size.
+  TUD_VENDOR_DESCRIPTOR(ITF_NUM_VENDOR, 5, EPNUM_VENDOR_OUT, EPNUM_VENDOR_IN, 64),
   //TUD_CDC_DESCRIPTOR(ITF_NUM_CDC_1, 4, EPNUM_CDC_1_NOTIF, 16, EPNUM_CDC_1_OUT, EPNUM_CDC_1_IN, 64),
 };
 
@@ -152,6 +108,8 @@ static uint8_t const desc_hs_configuration[] = {
   TUD_CDC_DESCRIPTOR(ITF_NUM_CDC_0, 4, EPNUM_CDC_0_NOTIF, 16, EPNUM_CDC_0_OUT, EPNUM_CDC_0_IN, 512),
 
   // 2nd CDC: Interface number, string index, EP notification address and size, EP data address (out, in) and size.
+  TUD_VENDOR_DESCRIPTOR(ITF_NUM_VENDOR, 5, EPNUM_VENDOR_OUT, EPNUM_VENDOR_IN, 512),
+
   //TUD_CDC_DESCRIPTOR(ITF_NUM_CDC_1, 4, EPNUM_CDC_1_NOTIF, 16, EPNUM_CDC_1_OUT, EPNUM_CDC_1_IN, 512),
 };
 
@@ -214,6 +172,7 @@ enum {
   STRID_MANUFACTURER,
   STRID_PRODUCT,
   STRID_SERIAL,
+  STRID_MS_OS_10 = 0xEE,
 };
 
 // array of pointer to string descriptors
@@ -223,12 +182,16 @@ static char const *string_desc_arr[] = {
   "TinyUSB Device",              // 2: Product
   NULL,                          // 3: Serials will use unique ID if possible
   "TinyUSB CDC",                 // 4: CDC Interface
+  "TinyUSB Vendor",              // 5: Vendor class interface
 };
 
 static uint16_t _desc_str[32 + 1];
 
 // Invoked when received GET STRING DESCRIPTOR request
 // Application return pointer to descriptor, whose contents must exist long enough for transfer to complete
+
+#define VENDOR_CODE_WCID  0x01  // Arbitrary single byte token for control transfers
+
 uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
   (void) langid;
   size_t chr_count;
@@ -243,10 +206,19 @@ uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
       chr_count = board_usb_get_serial(_desc_str + 1, 32);
       break;
 
-    default:
-      // Note: the 0xEE index string is a Microsoft OS 1.0 Descriptors.
-      // https://docs.microsoft.com/en-us/windows-hardware/drivers/usbcon/microsoft-defined-usb-descriptors
+    case STRID_MS_OS_10:
+        // Microsoft OS 1.0 String Descriptor
+        // https://docs.microsoft.com/en-us/windows-hardware/drivers/usbcon/microsoft-defined-usb-descriptors
+        static uint8_t const ms_os_desc[] = {
+            0x12, TUSB_DESC_STRING,
+            'M', 0, 'S', 0, 'F', 0, 'T', 0, '1', 0, '0', 0, '0', 0, // "MSFT100"
+            VENDOR_CODE_WCID,                                      // Vendor Command Code
+            0x00                                                   // Padding byte
+        };
+        return (uint16_t const*) ms_os_desc;
+        break;
 
+    default:
       if ( !(index < sizeof(string_desc_arr) / sizeof(string_desc_arr[0])) ) { return NULL; }
 
       const char *str = string_desc_arr[index];
@@ -266,4 +238,106 @@ uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
   // first byte is length (including header), second byte is string type
   _desc_str[0] = (uint16_t) ((TUSB_DESC_STRING << 8) | (2 * chr_count + 2));
   return _desc_str;
+}
+
+// ====================================================================
+// 4. MICROSOFT EXTENDED COMPATIBILITY ID DESCRIPTOR (WCID)
+// ====================================================================
+typedef struct TU_ATTR_PACKED {
+    // Header
+    uint32_t dwLength;
+    uint16_t bcdVersion;
+    uint16_t wIndex;
+    uint8_t  bCount;
+    uint8_t  reserved[7];
+    // Function section
+    uint8_t  bFirstInterfaceNumber;
+    uint8_t  reserved2;
+    uint8_t  compatibleID[8];
+    uint8_t  subCompatibleID[8];
+    uint8_t  reserved3[6];
+} ms_compat_id_desc_t;
+
+static ms_compat_id_desc_t const desc_ms_compat_id = {
+    .dwLength               = sizeof(ms_compat_id_desc_t),
+    .bcdVersion             = 0x0100, // MS OS Descriptors v1.0
+    .wIndex                 = 0x0004, // Extended Compat ID Index
+    .bCount                 = 1,      // Number of interfaces configured here
+    .reserved               = {0, 0, 0, 0, 0, 0, 0},
+    
+    .bFirstInterfaceNumber  = ITF_NUM_VENDOR,        // Matches Vendor Interface
+    .reserved2              = 0x01,        // Must be 0x01
+    .compatibleID           = "WINUSB\0\0", // 8 bytes padded with nulls
+    .subCompatibleID        = {0,0,0,0,0,0,0,0},
+    .reserved3              = {0,0,0,0,0,0}
+};
+_Static_assert(sizeof(ms_compat_id_desc_t) == 40, "bad WCID size");
+
+
+typedef struct TU_ATTR_PACKED {
+    uint32_t dwLength;              // 142
+    uint16_t bcdVersion;            // 0x0100
+    uint16_t wIndex;                // 0x0005
+    uint16_t wCount;                // 1 property section
+
+    // --- one property section ---
+    uint32_t dwSize;                // 132
+    uint32_t dwPropertyDataType;    // 1 = REG_SZ
+    uint16_t wPropertyNameLength;   // 40
+    uint16_t bPropertyName[20];     // "DeviceInterfaceGUID" + NUL, UTF-16LE
+    uint32_t dwPropertyDataLength;  // 78
+    uint16_t bPropertyData[39];     // "{3f966bd9-...}" + NUL, UTF-16LE
+} ms_ext_prop_desc_t;
+
+// Generate your OWN GUID for this — don't reuse this one in production
+// (e.g. `python -c "import uuid; print(uuid.uuid4())"`)
+static ms_ext_prop_desc_t const desc_ms_ext_prop = {
+    .dwLength               = sizeof(ms_ext_prop_desc_t),
+    .bcdVersion             = 0x0100,
+    .wIndex                 = 0x0005,
+    .wCount                 = 1,
+
+    .dwSize                 = 132,
+    .dwPropertyDataType     = 1, // REG_SZ
+    .wPropertyNameLength    = 40,
+    .bPropertyName          = u"DeviceInterfaceGUID",
+    .dwPropertyDataLength   = 78,
+    .bPropertyData          = u"{3f966bd9-fa04-4ec5-991c-d326973b5128}",
+};
+
+_Static_assert(sizeof(ms_ext_prop_desc_t) == 142, "bad ext props size");
+
+
+
+// ====================================================================
+// 5. VENDOR CONTROL TRANSFER CALLBACK
+// ====================================================================
+bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_request_t const * request) {
+    if (request->bmRequestType_bit.type != TUSB_REQ_TYPE_VENDOR ||
+        request->bRequest != VENDOR_CODE_WCID) {
+        return false;
+    }
+
+    if (stage == CONTROL_STAGE_SETUP) {
+        // Extended Compat ID — Device recipient, wIndex 0x0004
+        if (request->bmRequestType_bit.recipient == TUSB_REQ_RCPT_DEVICE &&
+            request->wIndex == 0x0004) {
+            uint16_t total_len = request->wLength;
+            if (total_len > sizeof(desc_ms_compat_id)) total_len = sizeof(desc_ms_compat_id);
+            return tud_control_xfer(rhport, request, (void*)(uintptr_t)&desc_ms_compat_id, total_len);
+        }
+
+        // Extended Properties — Interface recipient, wIndex 0x0005, wValue low byte = interface number
+        if (request->bmRequestType_bit.recipient == TUSB_REQ_RCPT_INTERFACE &&
+            request->wIndex == 0x0005 &&
+            (request->wValue & 0xFF) == ITF_NUM_VENDOR) {
+            uint16_t total_len = request->wLength;
+            if (total_len > sizeof(desc_ms_ext_prop)) total_len = sizeof(desc_ms_ext_prop);
+            return tud_control_xfer(rhport, request, (void*)(uintptr_t)&desc_ms_ext_prop, total_len);
+        }
+
+        return false; // stall anything else
+    }
+
+    return true; // ACK data/status stage
 }

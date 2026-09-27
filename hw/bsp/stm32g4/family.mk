@@ -42,6 +42,7 @@ SRC_C += \
 	$(ST_HAL_DRIVER)/Src/stm32$(ST_FAMILY)xx_hal_gpio.c \
     $(ST_HAL_DRIVER)/Src/stm32$(ST_FAMILY)xx_ll_gpio.c \
     $(ST_HAL_DRIVER)/Src/stm32$(ST_FAMILY)xx_ll_spi.c \
+    $(ST_HAL_DRIVER)/Src/stm32$(ST_FAMILY)xx_ll_tim.c \
 
 INC += \
 	$(TOP)/$(BOARD_PATH) \

@@ -42,6 +42,7 @@
 #include "stm32g4xx_ll_spi.h"
 #include "stm32g4xx_ll_opamp.h"
 #include "stm32g4xx_ll_bus.h"
+#include "stm32g4xx_ll_tim.h"
 
 // G474RE Nucleo does not has usb connection. We need to manually connect
 // - PA12 for D+, CN10.12
@@ -308,6 +309,68 @@ static inline void SPI_init(void){
     
 }
 
+
+static inline void timer_init(void){
+    LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM3);
+    
+    // // Enable DMA1 and DMAMUX1 Clocks on AHB1 (needed for data routing)
+    // LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA1);
+    // LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMAMUX1);
+    
+    
+    LL_TIM_InitTypeDef tim_init_struct = {0};
+
+    // Set configuration values
+    tim_init_struct.Prescaler          = 424;             // Clock down to 200kHz
+    tim_init_struct.CounterMode        = LL_TIM_COUNTERMODE_UP;
+    tim_init_struct.Autoreload         = 1;             // Trigger every 1000 ticks (1ms)
+    tim_init_struct.ClockDivision      = LL_TIM_CLOCKDIVISION_DIV1;
+    tim_init_struct.RepetitionCounter  = 0;
+
+    // Initialize TIM3 registers
+    LL_TIM_Init(TIM3, &tim_init_struct);
+    
+    // Enable ARPE (Auto-reload preload enable) so modifications to ARR 
+    // are synchronized correctly with update events
+    LL_TIM_EnableARRPreload(TIM3);
+    
+
+    
+    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOC);
+
+    LL_GPIO_InitTypeDef gpio_init = {0};
+    gpio_init.Pin        = LL_GPIO_PIN_6;
+    gpio_init.Mode       = LL_GPIO_MODE_ALTERNATE;
+    gpio_init.Speed      = LL_GPIO_SPEED_FREQ_VERY_HIGH; // Clean clock edges
+    gpio_init.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+    gpio_init.Pull       = LL_GPIO_PULL_NO;
+    gpio_init.Alternate  = LL_GPIO_AF_2; // AF2 maps PC6 to TIM3_CH1
+
+    LL_GPIO_Init(GPIOC, &gpio_init);
+    
+    
+    LL_TIM_OC_InitTypeDef tim_oc_init = {0};
+
+    // Configure Channel 1 properties
+    tim_oc_init.OCMode       = LL_TIM_OCMODE_PWM1;       // Flip state on match
+    tim_oc_init.OCState      = LL_TIM_OCSTATE_ENABLE;      // Pin output active
+    tim_oc_init.OCPolarity   = LL_TIM_OCPOLARITY_HIGH;     // Active high
+    tim_oc_init.CompareValue = 1;                          // Toggle at the start of period
+
+    LL_TIM_OC_Init(TIM3, LL_TIM_CHANNEL_CH1, &tim_oc_init);
+    
+    // Disable Preload for instant clock matching on start
+    LL_TIM_OC_DisablePreload(TIM3, LL_TIM_CHANNEL_CH1);
+
+    LL_TIM_SetCounter(TIM3, 0); // Reset count back to 0
+    LL_TIM_EnableCounter(TIM3); // Spin up the clock hardware
+    
+    
+    
+    
+    
+    
+}
 
 
 

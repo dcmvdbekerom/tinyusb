@@ -348,6 +348,7 @@ void DAC_set_values(uint16_t ch1, uint16_t ch2)
 
     //LL_SPI_TransmitData8(SPI_TypeDef *SPIx, uint8_t TxData)
 
+uint16_t ch1_offset_table[] = {2045, 2059, 2045, 2071, 2045, 2045, 2045, 2045};
 
 void select_signal_gain_ch1(uint16_t signal, uint16_t gain){
     
@@ -359,14 +360,14 @@ void select_signal_gain_ch1(uint16_t signal, uint16_t gain){
         //      B2    B1    B0  signal
         //     PGA   PGA S00=S01    
         //     CAL   CHx  B6=B4  
-        //      0     0     0   V_3V3
-        //      0     0     1   V_HALL FRONT
-        //      0     1     0   V_EXT
-        //      0     1     1   V_HALL SIDE
-        //      1     0     0   CAL1
-        //      1     0     1   CAL2
-        //      1     1     0   CAL3
-        //      1     1     1   CAL4
+        //      0     0     0   V_3V3           [2045]         
+        //      0     0     1   V_HALL FRONT    [2059] //default
+        //      0     1     0   V_EXT           [2045]
+        //      0     1     1   V_HALL SIDE     [2071]
+        //      1     0     0   CAL1            [2045]
+        //      1     0     1   CAL2            [2045]
+        //      1     1     0   CAL3            [2045]
+        //      1     1     1   CAL4            [2045]
         
         uint8_t pga_ch_mask = 0x0F;
         pga_config &= ~pga_ch_mask;   
@@ -382,10 +383,14 @@ void select_signal_gain_ch1(uint16_t signal, uint16_t gain){
         else {
             pga_config |= 0x0C | (signal & 0x3);
         }
+        
+        DAC_set_values(0x8000 | ch1_offset_table[(signal&0x7)], 0x0000);
+        
     }
     
     if (gain & 0x8000){
         spi_update = 1;
+
         //      B2    B1    B0   gain
         //      0     0     0      1x
         //      0     0     1      2x
@@ -394,7 +399,7 @@ void select_signal_gain_ch1(uint16_t signal, uint16_t gain){
         //      1     0     0     20x
         //      1     0     1     50x
         //      1     1     0    100x
-        //      1     1     1    200x
+        //      1     1     1    200x //default
 
         uint8_t pga_gain_mask = 0xF0;
         pga_config &= ~pga_gain_mask;
@@ -438,8 +443,7 @@ void select_signal_gain_ch1(uint16_t signal, uint16_t gain){
     }
 }
 
-
-
+uint16_t ch2_offset_table[] = {2044, 2060, 2044, 2039};
 
 void select_signal_gain_ch2(uint16_t signal, uint16_t gain){
     if (signal & 0x8000){
@@ -448,12 +452,13 @@ void select_signal_gain_ch2(uint16_t signal, uint16_t gain){
 
         //    S00 S01    
         //    B8  B7
-        //    0    0  V_EXT
-        //    0    1  V_HALL FRONT
-        //    1    0  V_EXT
-        //    1    1  V_HALL SIDE
+        //    0    0  V_EXT             [2044]
+        //    0    1  V_HALL FRONT      [2060] //default
+        //    1    0  V_EXT             [2044]
+        //    1    1  V_HALL SIDE       [2039]
 
         WRITE_REG(GPIOB->BSRR, (((~signal_input)&signal_mask) << 16) | (signal_input & signal_mask));
+        DAC_set_values(0x0000, 0x8000 | ch2_offset_table[(signal&0x3)]);
     }
     
     if (gain & 0x8000){
@@ -464,7 +469,7 @@ void select_signal_gain_ch2(uint16_t signal, uint16_t gain){
         //    A9  A8
         //    0    0  20 x 2 =  40x
         //    0    1  20 x 5 = 100x
-        //    1    0 100 x 2 = 200x
+        //    1    0 100 x 2 = 200x //default
         //    1    1 100 x 5 = 500x
             
         WRITE_REG(GPIOA->BSRR, (((~gain_input)&gain_mask) << 16) | (gain_input & gain_mask));

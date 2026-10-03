@@ -364,12 +364,7 @@ static inline void timer_init(void){
 
     LL_TIM_SetCounter(TIM3, 0); // Reset count back to 0
     LL_TIM_EnableCounter(TIM3); // Spin up the clock hardware
-    
-    
-    
-    
-    
-    
+
 }
 
 

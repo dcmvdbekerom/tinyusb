@@ -85,9 +85,8 @@ int main(void) {
 
   board_init_after_tusb();
 
-  //DAC_set_values( 0x800, 0x800);
-  DAC_set_values( 2067, 2067);
-  select_signal_gain_ch2(1,0);
+  select_signal_gain_ch1(0x8001, 0x8007); //Hall Front; 200x
+  select_signal_gain_ch2(0x8001, 0x8002); //Hall Front; 200x
 
   while (1) {
     tud_task(); // tinyusb device task

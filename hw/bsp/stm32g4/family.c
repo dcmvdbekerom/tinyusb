@@ -61,6 +61,23 @@ void USB_LP_IRQHandler(void) {
   tud_int_handler(0);
 }
 
+uint8_t DMA_transfer_interrupt_flag = 0;
+
+void DMA1_Channel1_IRQHandler(void){
+    if (LL_DMA_IsActiveFlag_HT1(DMA1)){
+      LL_DMA_ClearFlag_HT1(DMA1);
+      LL_SPI_TransmitData8(SPI1, 0xA1);
+      LL_GPIO_ResetOutputPin(GPIOA, SPI1_NSS_PIN);
+      DMA_transfer_interrupt_flag = 1;
+    };
+    if (LL_DMA_IsActiveFlag_TC1(DMA1)){  
+      LL_DMA_ClearFlag_TC1(DMA1);
+      LL_SPI_TransmitData8(SPI1, 0xAE);
+      LL_GPIO_SetOutputPin(GPIOA, SPI1_NSS_PIN);
+      DMA_transfer_interrupt_flag = 2;
+    }
+}
+
 // USB wakeup EXTI IRQ is not enabled by the fsdev driver (see fsdev_stm32.h);
 // restore when STOP-mode wakeup is implemented.
 //void USBWakeUp_IRQHandler(void) {
@@ -503,6 +520,8 @@ void select_signal_gain_ch2(uint16_t signal, uint16_t gain){
     
     }
 }
+
+
 
 
 

@@ -25,6 +25,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
 
@@ -48,12 +49,25 @@ enum {
   CMD_ERROR_PARSE_VALUE
 };
   
-  
+#define CMD_START_ACQUISITION       0x55AA55AA
+#define CMD_STOP_ACQUISITION        0x00FF00FF
+
+#define PING_PONG_BUF_SIZE    1024
+#define PING_PONG_HALF_SIZE   (PING_PONG_BUF_SIZE / 2)
+
+
+volatile uint8_t DMA_transfer_interrupt_flag = 0; 
+uint8_t ping_pong_buffer[PING_PONG_BUF_SIZE];
+
+static uint32_t bytes_written = 0;
+static uint8_t *current_source_ptr = NULL;
+static bool is_acquiring = false;
+static bool send_zlp = false;  
 
 
 static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 
-static void led_blinking_task(void);
+// static void led_blinking_task(void);
 static void cdc_task(void);
 static void vendor_task(void);
 static int parse_command(char *buf);
@@ -87,12 +101,14 @@ int main(void) {
 
   select_signal_gain_ch1(0x8001, 0x8007); //Hall Front; 200x
   select_signal_gain_ch2(0x8001, 0x8002); //Hall Front; 200x
+  
+  board_init_DMA(ping_pong_buffer, PING_PONG_BUF_SIZE / sizeof(uint16_t));
 
   while (1) {
     tud_task(); // tinyusb device task
     cdc_task();
     vendor_task();
-    led_blinking_task();
+    // led_blinking_task();
   }
 }
 
@@ -319,90 +335,137 @@ void tud_cdc_line_state_cb(uint8_t instance, bool dtr, bool rts) {
 // VENDOR TASK
 //-------------------------------------+
 
-static void vendor_task(void) {
-    
-    
-   
-    if (!tud_vendor_available()) {
+
+
+void vendor_task(void)
+{
+    if ( !tud_vendor_mounted() ) 
+    {
         return;
     }
 
-    // Read one or more bytes from the host
-    uint8_t buf[64];
-    uint32_t count = tud_vendor_read(buf, sizeof(buf));
-    
-
-    int32_t *values = (int32_t *)buf;
-    uint32_t n = count / sizeof(*values);
-
-
-    for (uint32_t i = 0; i < n; i++) {
-        values[i] += 1;
-    }
-
-    // Send the modified integers back
-    if (n > 0) {
-        tud_vendor_write(buf, n * sizeof(*values));
-        tud_vendor_write_flush();
-    }
-   
-   //if (!tud_vendor_mounted()) return;
-   
-   
-    // // Calculate where the DMA is currently writing
-    // // __HAL_DMA_GET_COUNTER returns remaining items to transfer
-    // uint32_t current_dma_index = DMA_BUF_SIZE - __HAL_DMA_GET_COUNTER(&hdma_tim2_up);
-    
-    // if (current_dma_index == last_read_index) return;
-    
-    // uint32_t available_bytes = 0;
-    
-    // // Check how many 32-bit words are new
-    // if (current_dma_index > last_read_index) {
-        // available_bytes = (current_dma_index - last_read_index) * sizeof(uint32_t);
+    // ==========================================
+    // 1. READ RX FIFO FOR HOST COMMANDS
+    // ==========================================
+    uint32_t rx_available = tud_vendor_available();
+    if (rx_available >= 4) // Commands are 4 bytes long
+    {
+        uint32_t command_received = 0;
+        tud_vendor_read(&command_received, 4);
         
-        // // Write directly to endpoint FIFO if there's space
-        // if (tud_vendor_write_available() >= available_bytes) {
-            // tud_vendor_write(((uint8_t*)&timestamp_buffer[last_read_index]), available_bytes);
-            // last_read_index = current_dma_index;
-        // }
-    // } else {
-        // // Handle DMA wrapper around the circular buffer
-        // uint32_t chunk1 = (DMA_BUF_SIZE - last_read_index) * sizeof(uint32_t);
-        // if (tud_vendor_write_available() >= chunk1) {
-            // tud_vendor_write(((uint8_t*)&timestamp_buffer[last_read_index]), chunk1);
-            // last_read_index = 0; // Wrap around to zero next loop
-        // }
-    // }
-   // tud_vendor_write_flush();
+        // board_led_write(0);
+        board_write_SPI((uint8_t*)&command_received, 4);
+        // board_led_write(1);
+        
+        if (command_received == CMD_START_ACQUISITION)
+        {
+            board_start_acquisition();
+            // board_led_write(1);
+            is_acquiring = true;
+            send_zlp = false;
+            // Reset streaming tracking variables
+            current_source_ptr = NULL;
+            bytes_written = 0;
+            DMA_transfer_interrupt_flag = 0; 
+        }
+        else if (command_received == CMD_STOP_ACQUISITION)
+        {
+            board_stop_acquisition();
+            // board_led_write(0);
+            is_acquiring = false;
+            send_zlp = true; // Flag that we need to send a final ZLP
+        }
+    }
+
+    // ==========================================
+    // 2. HANDLE LAST TRANSFER TERMINATION (ZLP)
+    // ==========================================
+    if (!is_acquiring && send_zlp)
+    {
+        // Wait until all previous data has completely cleared out of the FIFO
+        if (tud_vendor_write_available() == CFG_TUD_VENDOR_TX_BUFSIZE)
+        {
+            // Flushing an empty buffer forces TinyUSB to send a Zero-Length Packet (ZLP) [2]
+            tud_vendor_write_flush(); 
+            send_zlp = false; 
+            current_source_ptr = NULL;
+        }
+        return; // Skip data streaming logic since acquisition is stopped
+    }
+
+    // If acquisition is disabled and ZLP is already handled, do not stream data
+    if (!is_acquiring)
+    {
+        return;
+    }
+
+    // ==========================================
+    // 3. STREAM TX DATA (Only if acquiring)
+    // ==========================================
+    
+    // Capture new DMA events only if we aren't currently busy with a previous half
+    if (current_source_ptr == NULL) 
+    {
+        if (DMA_transfer_interrupt_flag == 1) 
+        {
+            current_source_ptr = &ping_pong_buffer[0]; // First half ready
+            DMA_transfer_interrupt_flag = 0;
+            bytes_written = 0;
+        } 
+        else if (DMA_transfer_interrupt_flag == 2) 
+        {
+            current_source_ptr = &ping_pong_buffer[PING_PONG_HALF_SIZE]; // Second half ready
+            DMA_transfer_interrupt_flag = 0;
+            bytes_written = 0;
+        }
+    }
+
+    // Stream from the active DMA half-buffer into TinyUSB's FIFO
+    if (current_source_ptr != NULL) 
+    {
+        uint32_t available_space = tud_vendor_write_available();
+        
+        if (available_space > 0) 
+        {
+            uint32_t chunk_size = PING_PONG_HALF_SIZE - bytes_written;
+            if (chunk_size > available_space) 
+            {
+                chunk_size = available_space;
+            }
+            
+            tud_vendor_write(&current_source_ptr[bytes_written], chunk_size);
+            bytes_written += chunk_size;
+        }
+        
+        // Once the entire half-buffer has been pushed to the TinyUSB FIFO, release it
+        if (bytes_written >= PING_PONG_HALF_SIZE) 
+        {
+            tud_vendor_write_flush(); // Force packet transmission on the bus
+            current_source_ptr = NULL; // Ready to receive the next DMA half-buffer event
+        }
+    }
 }
-
-
-
-
-
-
 
 //--------------------------------------------------------------------+
 // BLINKING TASK
 //--------------------------------------------------------------------+
-void led_blinking_task(void) {
-  static uint32_t start_ms = 0;
-  uint32_t now = 0;
-  //static uint32_t counter = 0;
-  static bool led_state = false;
+// void led_blinking_task(void) {
+  // static uint32_t start_ms = 0;
+  // uint32_t now = 0;
+  // //static uint32_t counter = 0;
+  // static bool led_state = false;
  
-  now = tusb_time_millis_api();
+  // now = tusb_time_millis_api();
 
-  //DAC_set_values( now, -now);
+  // //DAC_set_values( now, -now);
 
-  // Blink every interval ms
-  if (now - start_ms < blink_interval_ms) {
-    return; // not enough time
-  }
+  // // Blink every interval ms
+  // if (now - start_ms < blink_interval_ms) {
+    // return; // not enough time
+  // }
   
-  start_ms = now;
+  // start_ms = now;
   
-  board_led_write(led_state);
-  led_state = 1 - led_state; // toggle
-}
+  // board_led_write(led_state);
+  // led_state = 1 - led_state; // toggle
+// }

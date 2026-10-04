@@ -61,19 +61,15 @@ void USB_LP_IRQHandler(void) {
   tud_int_handler(0);
 }
 
-uint8_t DMA_transfer_interrupt_flag = 0;
+extern volatile uint8_t DMA_transfer_interrupt_flag;
 
 void DMA1_Channel1_IRQHandler(void){
     if (LL_DMA_IsActiveFlag_HT1(DMA1)){
       LL_DMA_ClearFlag_HT1(DMA1);
-      LL_SPI_TransmitData8(SPI1, 0xA1);
-      LL_GPIO_ResetOutputPin(GPIOA, SPI1_NSS_PIN);
       DMA_transfer_interrupt_flag = 1;
-    };
+    }
     if (LL_DMA_IsActiveFlag_TC1(DMA1)){  
       LL_DMA_ClearFlag_TC1(DMA1);
-      LL_SPI_TransmitData8(SPI1, 0xAE);
-      LL_GPIO_SetOutputPin(GPIOA, SPI1_NSS_PIN);
       DMA_transfer_interrupt_flag = 2;
     }
 }
@@ -522,6 +518,68 @@ void select_signal_gain_ch2(uint16_t signal, uint16_t gain){
 }
 
 
+void board_init_DMA(uint8_t* buf, size_t buf_len){
+
+ //ENABLE DMA
+    
+    //STM32G431 32kB is category 2 device
+    //DMAMUX channels 0 to  5 are connected to DMA1 channels 1 to 6
+    //DMAMUX channels 6 to 11 are connected to DMA2 channels 1 to 6
+            
+    LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA1);
+    LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMAMUX1);
+    
+    LL_DMA_InitTypeDef dma_init_struct = {0};
+    
+    dma_init_struct.PeriphOrM2MSrcAddress   = (uint32_t)&(TIM3->CNT);
+    dma_init_struct.MemoryOrM2MDstAddress   = (uint32_t)buf;
+    dma_init_struct.Direction               = LL_DMA_DIRECTION_PERIPH_TO_MEMORY;
+    dma_init_struct.Mode                    = LL_DMA_MODE_CIRCULAR;
+    dma_init_struct.PeriphOrM2MSrcIncMode   = LL_DMA_PERIPH_NOINCREMENT;
+    dma_init_struct.MemoryOrM2MDstIncMode   = LL_DMA_MEMORY_INCREMENT;
+    dma_init_struct.PeriphOrM2MSrcDataSize  = LL_DMA_PDATAALIGN_HALFWORD;
+    dma_init_struct.MemoryOrM2MDstDataSize  = LL_DMA_MDATAALIGN_HALFWORD;
+    dma_init_struct.NbData                  = buf_len;
+    dma_init_struct.PeriphRequest           = LL_DMAMUX_REQ_TIM2_UP ; //LL_DMAMUX_REQ_ADC1;
+    dma_init_struct.Priority                = LL_DMA_PRIORITY_HIGH;
+
+
+    LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_1);
+    
+    LL_DMA_Init(DMA1, LL_DMA_CHANNEL_1, &dma_init_struct);
+    LL_DMAMUX_SetRequestID(DMAMUX1, LL_DMAMUX_CHANNEL_0, LL_DMAMUX_REQ_TIM2_UP);
+
+    LL_DMA_EnableIT_TC(DMA1, LL_DMA_CHANNEL_1); //transfer complete
+    LL_DMA_EnableIT_HT(DMA1, LL_DMA_CHANNEL_1); //half transfer
+
+    NVIC_SetPriority(DMA1_Channel1_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
+    NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+
+    LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_1);
+    LL_TIM_EnableDMAReq_UPDATE(TIM2);
+
+}
+
+void board_write_SPI(uint8_t* buf, size_t buf_size){
+        LL_GPIO_ResetOutputPin(GPIOA, SPI1_NSS_PIN);
+        for (size_t i=0; i < buf_size; i++){
+            LL_SPI_TransmitData8(SPI1, buf[i]);
+        }
+        while (LL_SPI_IsActiveFlag_BSY(SPI1)) __NOP();
+        LL_GPIO_SetOutputPin(GPIOA, SPI1_NSS_PIN);
+}
+
+
+void board_start_acquisition(void){
+  LL_TIM_SetCounter(TIM3, 0);
+  LL_TIM_EnableCounter(TIM2); 
+  board_led_write(1);
+}
+
+void board_stop_acquisition(void){
+  LL_TIM_DisableCounter(TIM2);
+  board_led_write(0);
+}
 
 
 

@@ -64,6 +64,7 @@ extern "C" {
 #define CFG_BOARD_UART_BAUDRATE 115200   ///< Default baud rate
 #endif
 
+
 //--------------------------------------------------------------------+
 // Board Porting API
 // For simplicity, only one LED and one Button are used
@@ -82,6 +83,8 @@ void board_reset_to_bootloader(void);
 
 // Turn LED on or off
 void board_led_write(bool state);
+
+
 
 // Control led pattern using phase duration in ms.
 // For each phase, LED is toggle then repeated, board_led_task() is required to be called
@@ -104,7 +107,10 @@ int board_uart_write(void const *buf, int len);
 void DAC_set_values(uint16_t ch1, uint16_t ch2);
 void select_signal_gain_ch1(uint16_t signal, uint16_t gain);
 void select_signal_gain_ch2(uint16_t signal, uint16_t gain);
-
+void board_init_DMA(uint8_t* buf, size_t buf_len);
+void board_write_SPI(uint8_t* buf, size_t buf_size);
+void board_start_acquisition(void);
+void board_stop_acquisition(void);
 //--------------------------------------------------------------------+
 // Helper functions
 //--------------------------------------------------------------------+

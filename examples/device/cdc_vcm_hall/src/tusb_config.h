@@ -110,7 +110,7 @@
 
 
 #define CFG_TUD_VENDOR_RX_BUFSIZE  64
-#define CFG_TUD_VENDOR_TX_BUFSIZE  64 // Match your packet processing footprint
+#define CFG_TUD_VENDOR_TX_BUFSIZE  512 // Match your packet processing footprint
 
 
 

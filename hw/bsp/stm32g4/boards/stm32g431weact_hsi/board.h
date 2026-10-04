@@ -50,9 +50,9 @@
 // - PA11 for D-, CN10.14
 
 // LED
-#define LED_PORT              GPIOA
-#define LED_PIN               GPIO_PIN_0
-#define LED_STATE_ON          0
+#define LED_PORT              GPIOC
+#define LED_PIN               GPIO_PIN_6
+#define LED_STATE_ON          1
 
 // Button
 #define BUTTON_PORT           GPIOC
@@ -310,8 +310,8 @@ static inline void SPI_init(void){
     
 }
 
-#define PING_PONG_BUF_SIZE 98
-uint16_t ping_pong_buffer[PING_PONG_BUF_SIZE];
+
+
 
 
 static inline void timer_init(void){
@@ -369,7 +369,7 @@ static inline void timer_init(void){
 
     LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM3);
     LL_TIM_SetPrescaler(TIM3, 0);
-    LL_TIM_SetAutoReload(TIM3, 9);
+    LL_TIM_SetAutoReload(TIM3, 10000 - 1);
     
     LL_TIM_SetTriggerInput(TIM3, LL_TIM_TS_ITR1);
     LL_TIM_SetSlaveMode(TIM3, LL_TIM_CLOCKSOURCE_EXT_MODE1); 
@@ -402,75 +402,31 @@ static inline void timer_init(void){
     // Enable the TIM3 peripheral clock if not done already
     //PC6 = AF2 = TIM3_CH1
     
-    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOC);
-    gpio_init = (LL_GPIO_InitTypeDef){0};
-    gpio_init.Pin        = LL_GPIO_PIN_6;
-    gpio_init.Mode       = LL_GPIO_MODE_ALTERNATE;
-    gpio_init.Speed      = LL_GPIO_SPEED_FREQ_VERY_HIGH; // Clean clock edges
-    gpio_init.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-    gpio_init.Pull       = LL_GPIO_PULL_NO;
-    gpio_init.Alternate  = LL_GPIO_AF_2; // AF2 maps PC6 to TIM3_CH1
-    LL_GPIO_Init(GPIOC, &gpio_init);
+    // LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOC);
+    // gpio_init = (LL_GPIO_InitTypeDef){0};
+    // gpio_init.Pin        = LL_GPIO_PIN_6;
+    // gpio_init.Mode       = LL_GPIO_MODE_ALTERNATE;
+    // gpio_init.Speed      = LL_GPIO_SPEED_FREQ_VERY_HIGH; // Clean clock edges
+    // gpio_init.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+    // gpio_init.Pull       = LL_GPIO_PULL_NO;
+    // gpio_init.Alternate  = LL_GPIO_AF_2; // AF2 maps PC6 to TIM3_CH1
+    // LL_GPIO_Init(GPIOC, &gpio_init);
 
-    tim_oc_init = (LL_TIM_OC_InitTypeDef){0};
-    tim_oc_init.OCMode       = LL_TIM_OCMODE_PWM1;       // Flip state on match
-    tim_oc_init.OCState      = LL_TIM_OCSTATE_ENABLE;      // Pin output active
-    tim_oc_init.OCPolarity   = LL_TIM_OCPOLARITY_HIGH;     // Active high
-    tim_oc_init.CompareValue = 1;                          // Toggle at the start of period
+    // tim_oc_init = (LL_TIM_OC_InitTypeDef){0};
+    // tim_oc_init.OCMode       = LL_TIM_OCMODE_PWM1;       // Flip state on match
+    // tim_oc_init.OCState      = LL_TIM_OCSTATE_ENABLE;      // Pin output active
+    // tim_oc_init.OCPolarity   = LL_TIM_OCPOLARITY_HIGH;     // Active high
+    // tim_oc_init.CompareValue = 1;                          // Toggle at the start of period
 
-    LL_TIM_OC_Init(TIM3, LL_TIM_CHANNEL_CH1, &tim_oc_init);
-    LL_TIM_OC_DisablePreload(TIM3, LL_TIM_CHANNEL_CH1);
-    LL_TIM_CC_EnableChannel(TIM3, LL_TIM_CHANNEL_CH1);
+    // LL_TIM_OC_Init(TIM3, LL_TIM_CHANNEL_CH1, &tim_oc_init);
+    // LL_TIM_OC_DisablePreload(TIM3, LL_TIM_CHANNEL_CH1);
+    // LL_TIM_CC_EnableChannel(TIM3, LL_TIM_CHANNEL_CH1);
 
-
-
-
- //ENABLE DMA
-    
-    //STM32G431 32kB is category 2 device
-    //DMAMUX channels 0 to  5 are connected to DMA1 channels 1 to 6
-    //DMAMUX channels 6 to 11 are connected to DMA2 channels 1 to 6
-            
-    LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA1);
-    LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMAMUX1);
-    
-
-    LL_DMA_InitTypeDef dma_init_struct = {0};
-    
-    dma_init_struct.PeriphOrM2MSrcAddress   = (uint32_t)&(TIM3->CNT);
-    dma_init_struct.MemoryOrM2MDstAddress   = (uint32_t)ping_pong_buffer;
-    dma_init_struct.Direction               = LL_DMA_DIRECTION_PERIPH_TO_MEMORY;
-    dma_init_struct.Mode                    = LL_DMA_MODE_CIRCULAR;
-    dma_init_struct.PeriphOrM2MSrcIncMode   = LL_DMA_PERIPH_NOINCREMENT;
-    dma_init_struct.MemoryOrM2MDstIncMode   = LL_DMA_MEMORY_INCREMENT;
-    dma_init_struct.PeriphOrM2MSrcDataSize  = LL_DMA_PDATAALIGN_HALFWORD;
-    dma_init_struct.MemoryOrM2MDstDataSize  = LL_DMA_MDATAALIGN_HALFWORD;
-    dma_init_struct.NbData                  = PING_PONG_BUF_SIZE;
-    dma_init_struct.PeriphRequest           = LL_DMAMUX_REQ_TIM2_UP ; //LL_DMAMUX_REQ_ADC1;
-    dma_init_struct.Priority                = LL_DMA_PRIORITY_HIGH;
-
-
-    LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_1);
-    
-    LL_DMA_Init(DMA1, LL_DMA_CHANNEL_1, &dma_init_struct);
-    LL_DMAMUX_SetRequestID(DMAMUX1, LL_DMAMUX_CHANNEL_0, LL_DMAMUX_REQ_TIM2_UP);
-
-    LL_DMA_EnableIT_TC(DMA1, LL_DMA_CHANNEL_1); //transfer complete
-    LL_DMA_EnableIT_HT(DMA1, LL_DMA_CHANNEL_1); //half transfer
-
-    NVIC_SetPriority(DMA1_Channel1_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
-    NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-    
-    
-    
-    
-    LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_1);
-    LL_TIM_EnableDMAReq_UPDATE(TIM2);
 
     LL_TIM_EnableCounter(TIM3);
-    LL_TIM_EnableCounter(TIM2); // The moment TIM2 starts, the entire chain fires!
-
+    // LL_TIM_EnableCounter(TIM2); //toggle this in software to turn acquisition on or off
 }
+
 
 
 

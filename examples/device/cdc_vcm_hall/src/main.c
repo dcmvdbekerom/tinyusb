@@ -104,6 +104,12 @@ int main(void) {
   
   board_init_DMA(ping_pong_buffer, PING_PONG_BUF_SIZE / sizeof(uint16_t));
 
+  board_activate_ADC();
+  
+  //board_start_acquisition();
+  
+  
+
   while (1) {
     tud_task(); // tinyusb device task
     cdc_task();

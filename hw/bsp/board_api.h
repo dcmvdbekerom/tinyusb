@@ -108,6 +108,7 @@ void DAC_set_values(uint16_t ch1, uint16_t ch2);
 void select_signal_gain_ch1(uint16_t signal, uint16_t gain);
 void select_signal_gain_ch2(uint16_t signal, uint16_t gain);
 void board_init_DMA(uint8_t* buf, size_t buf_len);
+void board_activate_ADC(void);
 void board_write_SPI(uint8_t* buf, size_t buf_size);
 void board_start_acquisition(void);
 void board_stop_acquisition(void);

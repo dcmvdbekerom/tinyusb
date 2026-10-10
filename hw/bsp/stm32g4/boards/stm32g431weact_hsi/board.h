@@ -44,6 +44,9 @@
 #include "stm32g4xx_ll_bus.h"
 #include "stm32g4xx_ll_tim.h"
 #include "stm32g4xx_ll_dma.h"
+#include "stm32g4xx_ll_adc.h"
+#include "stm32g4xx_ll_rcc.h"
+
 
 // G474RE Nucleo does not has usb connection. We need to manually connect
 // - PA12 for D+, CN10.12
@@ -84,6 +87,7 @@ static inline void board_clock_init(void)
   // Configure the main internal regulator output voltage
   HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1_BOOST);
 
+
   // Initializes the CPU, AHB and APB buses clocks
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48 | RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState       = RCC_HSI_ON;
@@ -92,10 +96,10 @@ static inline void board_clock_init(void)
   RCC_OscInitStruct.PLL.PLLState   = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource  = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM       = RCC_PLLM_DIV4;
-  RCC_OscInitStruct.PLL.PLLN       = 85;
-  RCC_OscInitStruct.PLL.PLLP       = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLN       = 75;
+  RCC_OscInitStruct.PLL.PLLP       = RCC_PLLP_DIV5; //ADCCLK
   RCC_OscInitStruct.PLL.PLLQ       = RCC_PLLQ_DIV2;
-  RCC_OscInitStruct.PLL.PLLR       = RCC_PLLR_DIV2;
+  RCC_OscInitStruct.PLL.PLLR       = RCC_PLLR_DIV2; //SYSCLK
   HAL_RCC_OscConfig(&RCC_OscInitStruct);
 
   // Initializes the CPU, AHB and APB buses clocks
@@ -362,7 +366,9 @@ static inline void timer_init(void){
     /////////////////////////
 
     LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM2);
-    LL_TIM_SetPrescaler(TIM2, 424);
+    // LL_TIM_SetPrescaler(TIM2, 424);
+    LL_TIM_SetPrescaler(TIM2, 375-1);
+
     LL_TIM_SetAutoReload(TIM2, 1);
     LL_TIM_SetTriggerOutput(TIM2, LL_TIM_TRGO_UPDATE);
 
@@ -428,6 +434,61 @@ static inline void timer_init(void){
 }
 
 
+static void init_ADC_clock(void){
+    
+     // Enable PLLP (RCC->PLLCFGR_PLLPEN = 1)
+    LL_RCC_PLL_EnableDomain_ADC();
+    
+    // Select PLLP as ADC12 kernel source (RCC->CCIPR_ADC12SEL = 0x1)
+    LL_RCC_SetADCClockSource(LL_RCC_ADC12_CLKSOURCE_PLL); 
+    
+    // Enable ADC clock (RCC->AHB2ENR-ADC12EN = 1)
+    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_ADC12);
+    
+    // Set kernel clock /1 as source (ADC12_Common->CCR_CKMODE & ADC12_Common->CCR_PRESC)
+    LL_ADC_SetCommonClock(__LL_ADC_COMMON_INSTANCE(ADC1), LL_ADC_CLOCK_ASYNC_DIV1); 
+    
+}
+
+
+static void init_ADC_config(void){
+
+    // Set pin PB14 to analog channel 5
+    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOB);
+    LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_14, LL_GPIO_MODE_ANALOG);
+    LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_14, LL_GPIO_PULL_NO);
+    
+    //Set data type and power mode
+    LL_ADC_InitTypeDef ADC_InitStruct = {0};
+    ADC_InitStruct.Resolution = LL_ADC_RESOLUTION_12B;
+    ADC_InitStruct.DataAlignment = LL_ADC_DATA_ALIGN_RIGHT;
+    ADC_InitStruct.LowPowerMode = LL_ADC_LP_MODE_NONE;
+    LL_ADC_Init(ADC1, &ADC_InitStruct);
+
+    // 3. Configure for Software Trigger + Continuous Mode
+    LL_ADC_REG_InitTypeDef ADC_REG_InitStruct = {0};
+    ADC_REG_InitStruct.TriggerSource    = LL_ADC_REG_TRIG_SOFTWARE;
+    ADC_REG_InitStruct.SequencerLength  = LL_ADC_REG_SEQ_SCAN_DISABLE;
+    ADC_REG_InitStruct.ContinuousMode   = LL_ADC_REG_CONV_CONTINUOUS; // Automatically loop conversions
+    ADC_REG_InitStruct.DMATransfer      = LL_ADC_REG_DMA_TRANSFER_UNLIMITED; //LL_ADC_REG_DMA_TRANSFER_UNLIMITED; 
+    ADC_REG_InitStruct.Overrun          = LL_ADC_REG_OVR_DATA_OVERWRITTEN; // LL_ADC_REG_OVR_DATA_PRESERVED;
+    LL_ADC_REG_Init(ADC1, &ADC_REG_InitStruct);
+
+    LL_ADC_REG_SetSequencerRanks(ADC1, LL_ADC_REG_RANK_1, LL_ADC_CHANNEL_5); //PB14
+    
+    LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_5, LL_ADC_SAMPLINGTIME_2CYCLES_5); 
+
+
+
+    // //2. Configure the Hardware Oversampler
+    // //Set 16x oversampling ratio and shift right by 4 bits to scale back to 12-bit/16-bit bounds
+    
+    LL_ADC_ConfigOverSamplingRatioShift(ADC1, LL_ADC_OVS_RATIO_16, LL_ADC_OVS_SHIFT_RIGHT_4);
+    
+    // //Configure behavior: All 16 conversions are run sequentially upon continuous triggering
+    LL_ADC_SetOverSamplingScope(ADC1, LL_ADC_OVS_GRP_REGULAR_CONTINUED); //
+
+}
 
 
 static inline void board_vbus_sense_init(void)

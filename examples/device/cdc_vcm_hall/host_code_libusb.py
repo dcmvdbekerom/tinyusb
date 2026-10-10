@@ -22,7 +22,7 @@ N_chunks = 1024
 buf_size = chunk_size * N_chunks
 read_buf = np.zeros(buf_size, dtype=np.uint8)
 
-fs = 2e5 #Samples/s
+fs = 6e7 / 15 / 16 #Samples/s
 
 
 #%% USB acquisition
@@ -49,21 +49,36 @@ try:
     
     t0 = perf_counter()
     read_bytes = 0
+
+    ydata8 = np.zeros(chunk_size, dtype=np.uint8)
+    ydata = ydata8.view(np.uint16)
+    # p0, = plt.plot(ydata)
+    # fig = plt.gcf()
+    # plt.ylim(0,10000)
+    
     while read_bytes < buf_size:
         # print(read_bytes)
         raw = ep_in.read(chunk_size, timeout=1000)
+        # print(len(raw))
+        # ydata8[0:len(raw)] = raw
+        # p0.set_ydata(ydata)
+        
+        # fig.canvas.draw()
+        # fig.canvas.flush_events()
+        
         read_buf[read_bytes:read_bytes+len(raw)] = raw
         read_bytes += len(raw)
     
+    
+    
     t1 = perf_counter()
-
-
     send_arr = np.array([0x00FF00FF], dtype="<u4")  # STOP
     print("STOP acquisition")
     ep_out.write(send_arr.tobytes())
     
     delta_t = t1 - t0 #s
-    t_expd = buf_size / 2 / fs #s
+    UINTSIZE = 2
+    t_expd = buf_size / UINTSIZE / fs #s
     t_ratio = 100. * (delta_t - t_expd) / t_expd
     
     print(f'Time elapsed:  {delta_t:.2f}s (expected {t_expd:.2f}s / {t_ratio:+01.1f}%)')
@@ -83,8 +98,20 @@ finally:
 
 
 read_data = read_buf.view(np.uint16)
+y_arr = read_data.astype(np.float64) / 4096. * 3.3
 dt = 1/fs #s
 t_arr = np.arange(len(read_data))*dt
-plt.plot(t_arr, read_data)
+# plt.plot(t_arr, y_arr)
+
+from scipy import fft
+
+f_arr = fft.rfftfreq(len(t_arr), d=dt) *1e-3 #kHz
+Y_arr = fft.rfft(y_arr)
+
+plt.plot(f_arr, Y_arr)
+plt.yscale('log')
+
+
+
 
         

@@ -531,7 +531,7 @@ void board_init_DMA(uint8_t* buf, size_t buf_len){
     
     LL_DMA_InitTypeDef dma_init_struct = {0};
     
-    dma_init_struct.PeriphOrM2MSrcAddress   = (uint32_t)&(TIM3->CNT);
+    dma_init_struct.PeriphOrM2MSrcAddress   = (uint32_t)&(ADC1->DR);
     dma_init_struct.MemoryOrM2MDstAddress   = (uint32_t)buf;
     dma_init_struct.Direction               = LL_DMA_DIRECTION_PERIPH_TO_MEMORY;
     dma_init_struct.Mode                    = LL_DMA_MODE_CIRCULAR;
@@ -540,14 +540,13 @@ void board_init_DMA(uint8_t* buf, size_t buf_len){
     dma_init_struct.PeriphOrM2MSrcDataSize  = LL_DMA_PDATAALIGN_HALFWORD;
     dma_init_struct.MemoryOrM2MDstDataSize  = LL_DMA_MDATAALIGN_HALFWORD;
     dma_init_struct.NbData                  = buf_len;
-    dma_init_struct.PeriphRequest           = LL_DMAMUX_REQ_TIM2_UP ; //LL_DMAMUX_REQ_ADC1;
+    dma_init_struct.PeriphRequest           = LL_DMAMUX_REQ_ADC1;
     dma_init_struct.Priority                = LL_DMA_PRIORITY_HIGH;
-
 
     LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_1);
     
     LL_DMA_Init(DMA1, LL_DMA_CHANNEL_1, &dma_init_struct);
-    LL_DMAMUX_SetRequestID(DMAMUX1, LL_DMAMUX_CHANNEL_0, LL_DMAMUX_REQ_TIM2_UP);
+    LL_DMAMUX_SetRequestID(DMAMUX1, LL_DMAMUX_CHANNEL_0, LL_DMAMUX_REQ_ADC1); //LL_DMAMUX_REQ_TIM2_UP
 
     LL_DMA_EnableIT_TC(DMA1, LL_DMA_CHANNEL_1); //transfer complete
     LL_DMA_EnableIT_HT(DMA1, LL_DMA_CHANNEL_1); //half transfer
@@ -556,9 +555,54 @@ void board_init_DMA(uint8_t* buf, size_t buf_len){
     NVIC_EnableIRQ(DMA1_Channel1_IRQn);
 
     LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_1);
-    LL_TIM_EnableDMAReq_UPDATE(TIM2);
 
 }
+
+
+
+
+void board_activate_ADC(void)
+{
+    LL_ADC_Disable(ADC1); 
+    
+    LL_AHB2_GRP1_ForceReset(LL_AHB2_GRP1_PERIPH_ADC12);
+    LL_AHB2_GRP1_ReleaseReset(LL_AHB2_GRP1_PERIPH_ADC12);
+
+    init_ADC_clock();
+
+    //Disable deep power down and enable regulator
+    LL_ADC_DisableDeepPowerDown(ADC1); // 1. Exit Deep-power-down mode by clearing DEEPPWD bit.   
+    LL_ADC_EnableInternalRegulator(ADC1); // 2. Enable the ADC voltage regulator by setting ADVREGEN.
+    for(volatile uint32_t i = 0; i < (20 * SystemCoreClock / 1000 / 1000); i++); //20 us wait
+    
+    //Calibrate ADC
+    board_led_write(1);
+    LL_ADC_StartCalibration(ADC1, LL_ADC_SINGLE_ENDED);
+    while (LL_ADC_IsCalibrationOnGoing(ADC1)); // Wait for calibration to finish
+    board_led_write(0);
+    for(volatile uint32_t i = 0; i < 100; i++); // Delay post-calibration (~4 ADC clock cycles)
+
+    init_ADC_config();
+
+    LL_ADC_Enable(ADC1);
+
+    
+}
+
+void board_start_acquisition(void){
+  //LL_TIM_SetCounter(TIM3, 0);
+  //LL_TIM_EnableCounter(TIM2); 
+  LL_ADC_REG_StartConversion(ADC1); 
+  board_led_write(1);
+}
+
+void board_stop_acquisition(void){
+  //LL_TIM_DisableCounter(TIM2);
+  LL_ADC_REG_StopConversion(ADC1); 
+  board_led_write(0);
+}
+
+
 
 void board_write_SPI(uint8_t* buf, size_t buf_size){
         LL_GPIO_ResetOutputPin(GPIOA, SPI1_NSS_PIN);
@@ -567,18 +611,6 @@ void board_write_SPI(uint8_t* buf, size_t buf_size){
         }
         while (LL_SPI_IsActiveFlag_BSY(SPI1)) __NOP();
         LL_GPIO_SetOutputPin(GPIOA, SPI1_NSS_PIN);
-}
-
-
-void board_start_acquisition(void){
-  LL_TIM_SetCounter(TIM3, 0);
-  LL_TIM_EnableCounter(TIM2); 
-  board_led_write(1);
-}
-
-void board_stop_acquisition(void){
-  LL_TIM_DisableCounter(TIM2);
-  board_led_write(0);
 }
 
 
